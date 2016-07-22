@@ -13,7 +13,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.*;
 
 public class LocalStore {
   private static Logger log = LogManager.getLogger(LocalStore.class);
@@ -117,8 +118,59 @@ public class LocalStore {
     env.close();
   }
 
+  public static class WriteTask implements Runnable{
+    Environment env;
+    Store store;
+
+    public WriteTask(Environment env, Store store) {
+      this.env = env;
+      this.store = store;
+    }
+
+    public void run(){
+      env.executeInTransaction(new TransactionalExecutable() {
+          @Override
+          public void execute(@NotNull final Transaction txn) {
+            log.info("start writing task {}", this);
+            for (int i=0;i<1000;i++) {
+              byte[] kbuf = new byte[16];
+              ArrayByteIterable key = new ArrayByteIterable(kbuf);
+              byte[] vbuf = new byte[64];
+              ArrayByteIterable value = new ArrayByteIterable(vbuf);
+              UUID guid = UUID.randomUUID();
+              writeGuid(guid, kbuf);
+              store.put(txn, key, value);
+            }
+          }
+        });
+      log.info("done writing");
+    }
+  }
+
+  public static void writeTest2() {
+    try {
+      final Environment env = Environments.newInstance("data");
+      final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+          @Override
+          public Store compute(@NotNull final Transaction txn) {
+            return env.openStore("idstore", WITHOUT_DUPLICATES, txn);
+          }
+        });
+      new Thread(new WriteTask(env, store)).start();
+      new Thread(new WriteTask(env, store)).start();
+      Thread.currentThread().sleep(5000);
+      for(String name :  env.getStatistics().getItemNames()) {
+        StatisticsItem item = env.getStatistics().getStatisticsItem(name);
+        log.info("{}={}",name, item.getTotal());
+      }
+      env.close();
+    } catch (Exception e) {
+      log.info(e);
+    }
+  }
+
   public static void main( String[] args ) {
-    writeTest();
-    readTest();
+    writeTest2();
+    //readTest();
   }
 }
