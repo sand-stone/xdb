@@ -131,19 +131,22 @@ public class LocalStore {
       env.executeInTransaction(new TransactionalExecutable() {
           @Override
           public void execute(@NotNull final Transaction txn) {
-            log.info("start writing task {}", this);
-            for (int i=0;i<1000;i++) {
-              byte[] kbuf = new byte[16];
-              ArrayByteIterable key = new ArrayByteIterable(kbuf);
-              byte[] vbuf = new byte[64];
-              ArrayByteIterable value = new ArrayByteIterable(vbuf);
-              UUID guid = UUID.randomUUID();
-              writeGuid(guid, kbuf);
-              store.put(txn, key, value);
+            try {
+              for (int i=0;i<1000000;i++) {
+                byte[] kbuf = new byte[16];
+                ArrayByteIterable key = new ArrayByteIterable(kbuf);
+                byte[] vbuf = new byte[64];
+                ArrayByteIterable value = new ArrayByteIterable(vbuf);
+                UUID guid = UUID.randomUUID();
+                writeGuid(guid, kbuf);
+                store.put(txn, key, value);
+                if(i%100000==0) System.out.println(this);
+              }
+            } catch (Exception e) {
+              log.info(e);
             }
           }
         });
-      log.info("done writing");
     }
   }
 
@@ -156,9 +159,17 @@ public class LocalStore {
             return env.openStore("idstore", WITHOUT_DUPLICATES, txn);
           }
         });
-      new Thread(new WriteTask(env, store)).start();
-      new Thread(new WriteTask(env, store)).start();
-      Thread.currentThread().sleep(5000);
+      log.info("start write workers");
+      Thread[] workers = new Thread[4];
+      for(int i=0; i< workers.length; i++) {
+        workers[i] = new Thread(new WriteTask(env, store));
+        workers[i].start();
+      }
+
+      for(int i=0; i< workers.length; i++) {
+        workers[i].join();
+      }
+      log.info("end writing");
       for(String name :  env.getStatistics().getItemNames()) {
         StatisticsItem item = env.getStatistics().getStatisticsItem(name);
         log.info("{}={}",name, item.getTotal());
@@ -170,7 +181,7 @@ public class LocalStore {
   }
 
   public static void main( String[] args ) {
-    writeTest2();
-    //readTest();
+    writeTest();
+    readTest();
   }
 }
