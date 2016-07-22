@@ -42,7 +42,7 @@
               <include>io.atomix:atomix-all</include>
               <include>org.apache.logging.log4j:log4j-core</include>
               <include>org.apache.logging.log4j:log4j-api</include>
-              <include>log4j:log4j</include>
+              <include>org.slf4j:slf4j-api</include>
             </includes>
           </artifactSet>
           <filters>
