@@ -127,26 +127,34 @@ public class LocalStore {
       this.store = store;
     }
 
-    public void run(){
-      env.executeInTransaction(new TransactionalExecutable() {
-          @Override
-          public void execute(@NotNull final Transaction txn) {
-            try {
-              for (int i=0;i<1000000;i++) {
-                byte[] kbuf = new byte[16];
-                ArrayByteIterable key = new ArrayByteIterable(kbuf);
-                byte[] vbuf = new byte[64];
-                ArrayByteIterable value = new ArrayByteIterable(vbuf);
-                UUID guid = UUID.randomUUID();
-                writeGuid(guid, kbuf);
-                store.put(txn, key, value);
-                if(i%100000==0) System.out.println(this);
+    public void run() {
+      long t1 = System.nanoTime();
+      for (int tx = 0; tx < 1000; tx++) {
+        if(tx%10==0) {
+          long t2 = System.nanoTime();
+          log.info("write 100K transactions {}={}",this,(t2-t1)/1e9);
+          t1 = t2;
+          //env.gc();
+        }
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+              try {
+                for (int i=0;i<10000;i++) {
+                  byte[] kbuf = new byte[16];
+                  ArrayByteIterable key = new ArrayByteIterable(kbuf);
+                  byte[] vbuf = new byte[64];
+                  ArrayByteIterable value = new ArrayByteIterable(vbuf);
+                  UUID guid = UUID.randomUUID();
+                  writeGuid(guid, kbuf);
+                  store.put(txn, key, value);
+                }
+              } catch (Exception e) {
+                log.info(e);
               }
-            } catch (Exception e) {
-              log.info(e);
             }
-          }
-        });
+          });
+      }
     }
   }
 
@@ -160,7 +168,7 @@ public class LocalStore {
           }
         });
       log.info("start write workers");
-      Thread[] workers = new Thread[4];
+      Thread[] workers = new Thread[5];
       for(int i=0; i< workers.length; i++) {
         workers[i] = new Thread(new WriteTask(env, store));
         workers[i].start();
@@ -191,20 +199,30 @@ public class LocalStore {
 
     public void run(){
       final int[] count = new int[1];
-      env.executeInTransaction(new TransactionalExecutable() {
-          @Override
-          public void execute(@NotNull final Transaction txn) {
-            log.info("start reading");
-            try (Cursor cursor = store.openCursor(txn)) {
-              while (cursor.getNext()) {
-                ByteIterable key = cursor.getKey();
-                ByteIterable value = cursor.getValue();
-                count[0]++;
+      int prev = -1;
+      while (true) {
+        try {
+          Thread.currentThread().sleep(1000);
+        } catch (InterruptedException e) {}
+        env.executeInReadonlyTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+              try (Cursor cursor = store.openCursor(txn)) {
+                while (cursor.getNext()) {
+                  ByteIterable key = cursor.getKey();
+                  ByteIterable value = cursor.getValue();
+                  count[0]++;
+                }
               }
             }
-          }
-        });
-      log.info("done reading {} records", count[0]);
+          });
+        log.info("read {} records", count[0]);
+        if (prev == count[0])
+          break;
+        else
+          prev = count[0];
+        count[0]=0;
+      }
     }
   }
 
@@ -218,7 +236,7 @@ public class LocalStore {
           }
         });
       log.info("start read workers");
-      Thread[] workers = new Thread[4];
+      Thread[] workers = new Thread[10];
       for(int i=0; i< workers.length; i++) {
         workers[i] = new Thread(new ReadTask(env, store));
         workers[i].start();
@@ -238,8 +256,101 @@ public class LocalStore {
     }
   }
 
+  public static void mixedTest() {
+     try {
+      final Environment env = Environments.newInstance("data");
+      final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+          @Override
+          public Store compute(@NotNull final Transaction txn) {
+            return env.openStore("idstore", WITHOUT_DUPLICATES, txn);
+          }
+        });
+      log.info("start workers");
+      Thread[] workers = new Thread[8];
+      for(int i=0; i< workers.length; i++) {
+        if (i%2==0)
+          workers[i] = new Thread(new ReadTask(env, store));
+        else
+          workers[i] = new Thread(new WriteTask(env, store));
+        workers[i].start();
+      }
+
+      for(int i=0; i< workers.length; i++) {
+        workers[i].join();
+      }
+      log.info("end ");
+      for(String name :  env.getStatistics().getItemNames()) {
+        StatisticsItem item = env.getStatistics().getStatisticsItem(name);
+        log.info("{}={}",name, item.getTotal());
+      }
+      env.close();
+    } catch (Exception e) {
+      log.info(e);
+    }
+  }
+
+  public static class Shard implements Runnable {
+    String dir;
+
+    public Shard(String dir) {
+      this.dir = dir;
+    }
+
+    public void run() {
+      try {
+        final Environment env = Environments.newInstance(dir);
+        final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+            @Override
+            public Store compute(@NotNull final Transaction txn) {
+              return env.openStore("idstore#"+dir, WITHOUT_DUPLICATES, txn);
+            }
+          });
+        log.info("start workers {}", dir);
+        Thread[] workers = new Thread[8];
+        for(int i=0; i< workers.length; i++) {
+          if (i%2==0)
+            workers[i] = new Thread(new ReadTask(env, store));
+          else
+            workers[i] = new Thread(new WriteTask(env, store));
+          workers[i].start();
+        }
+
+        for(int i=0; i< workers.length; i++) {
+          workers[i].join();
+        }
+        log.info("end ");
+        for(String name :  env.getStatistics().getItemNames()) {
+          StatisticsItem item = env.getStatistics().getStatisticsItem(name);
+          log.info("{}={}",name, item.getTotal());
+        }
+        env.close();
+      } catch (Exception e) {
+        log.info(e);
+      }
+    }
+  }
+
+  public static void mixedTest2() {
+     try {
+       long t1 = System.nanoTime();
+       Thread[] workers = new Thread[4];
+       for(int i=0; i< workers.length; i++) {
+         workers[i] = new Thread(new Shard("data/data"+i));
+         workers[i].start();
+       }
+
+       for(int i=0; i< workers.length; i++) {
+         workers[i].join();
+       }
+       long t2 = System.nanoTime();
+       log.info("***total time:{}\n",(t2-t1)/1e9);
+     } catch (Exception e) {
+       log.info(e);
+     }
+  }
+
   public static void main( String[] args ) {
-    writeTest2();
-    readTest2();
+    mixedTest2();
+    //readTest2();
   }
 }
