@@ -118,7 +118,7 @@ public class LocalStore {
     env.close();
   }
 
-  public static class WriteTask implements Runnable{
+  public static class WriteTask implements Runnable {
     Environment env;
     Store store;
 
@@ -180,8 +180,66 @@ public class LocalStore {
     }
   }
 
+  public static class ReadTask implements Runnable {
+    Environment env;
+    Store store;
+
+    public ReadTask(Environment env, Store store) {
+      this.env = env;
+      this.store = store;
+    }
+
+    public void run(){
+      final int[] count = new int[1];
+      env.executeInTransaction(new TransactionalExecutable() {
+          @Override
+          public void execute(@NotNull final Transaction txn) {
+            log.info("start reading");
+            try (Cursor cursor = store.openCursor(txn)) {
+              while (cursor.getNext()) {
+                ByteIterable key = cursor.getKey();
+                ByteIterable value = cursor.getValue();
+                count[0]++;
+              }
+            }
+          }
+        });
+      log.info("done reading {} records", count[0]);
+    }
+  }
+
+  public static void readTest2() {
+     try {
+      final Environment env = Environments.newInstance("data");
+      final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
+          @Override
+          public Store compute(@NotNull final Transaction txn) {
+            return env.openStore("idstore", WITHOUT_DUPLICATES, txn);
+          }
+        });
+      log.info("start read workers");
+      Thread[] workers = new Thread[4];
+      for(int i=0; i< workers.length; i++) {
+        workers[i] = new Thread(new ReadTask(env, store));
+        workers[i].start();
+      }
+
+      for(int i=0; i< workers.length; i++) {
+        workers[i].join();
+      }
+      log.info("end reading");
+      for(String name :  env.getStatistics().getItemNames()) {
+        StatisticsItem item = env.getStatistics().getStatisticsItem(name);
+        log.info("{}={}",name, item.getTotal());
+      }
+      env.close();
+    } catch (Exception e) {
+      log.info(e);
+    }
+  }
+
   public static void main( String[] args ) {
-    writeTest();
-    readTest();
+    writeTest2();
+    readTest2();
   }
 }
