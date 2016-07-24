@@ -55,6 +55,29 @@ public class Gorilla {
     double val;
     long ts;
 
+    public static ByteIterable get(String key) {
+      byte[] k = key.getBytes();
+      byte[] buf = new byte[k.length+8];
+      System.arraycopy(k, 0, buf, 0, k.length);
+      return new ArrayByteIterable(buf);
+    }
+
+    public static ByteIterable get(String key, long ts) {
+      byte[] k = key.getBytes();
+      byte[] buf = new byte[k.length+8];
+      System.arraycopy(k, 0, buf, 0, k.length);
+      toBytes(ts, buf, k.length);
+      return new ArrayByteIterable(buf);
+    }
+
+    public static String get(ByteIterable key) {
+      byte[] bytes = key.getBytesUnsafe();
+      try {
+        return new String(bytes, 0, bytes.length-10, "US-ASCII");
+      } catch(java.io.UnsupportedEncodingException e) {}
+      return "";
+    }
+
     public Event(String key, double val, long ts) {
       this.key = key;
       this.val = val;
@@ -66,11 +89,7 @@ public class Gorilla {
     }
 
     public ByteIterable getKey() {
-      byte[] k = key.getBytes();
-      byte[] buf = new byte[k.length+8];
-      System.arraycopy(k, 0, buf, 0, k.length);
-      toBytes(ts, buf, k.length);
-      return new ArrayByteIterable(buf);
+      return get(key, ts);
     }
 
     public ByteIterable getValue() {
@@ -81,14 +100,14 @@ public class Gorilla {
   }
 
   public static class DataGeneratorTask implements Runnable {
-    private static String[] streams = new String[]{"%s.%s.CPU", "%s.%s.MEM"};
+    private static String[] streams = new String[]{"%s|%s|CPU", "%s|%s|MEM"};
     private String[] keys;
     private LinkedBlockingQueue<Event> evtsq;
     private int cap;
     private Random rnd;
     private Shard shard;
     private boolean stop;
-    
+
     public DataGeneratorTask(Shard shard) {
       this.shard = shard;
       this.evtsq = new LinkedBlockingQueue<Event>();
@@ -104,31 +123,33 @@ public class Gorilla {
     public boolean empty() {
       return evtsq.size() <= 0;
     }
-    
+
+    public int qsize() {
+      return evtsq.size();
+    }
+
     public void stop() {
       stop = true;
     }
-    
+
     public void run() {
       log.info("data generation starts");
       while (!stop) {
         if(evtsq.size()>cap) {
           try {
-            Thread.currentThread().sleep(1000);
+            Thread.currentThread().sleep(100);
           } catch(InterruptedException e) {}
           continue;
         }
         for(String t : streams) {
           StringBuilder sb = new StringBuilder();
           Formatter formatter = new Formatter(sb, Locale.US);
-          long ts = Instant.now().toEpochMilli();
+          long ts = Instant.now().toEpochMilli()+rnd.nextInt(5000);
           double val = rnd.nextDouble();
           formatter.format(t, "shard"+shard.id+"#"+rnd.nextInt(5), "machine"+rnd.nextInt(1000));
           Event evt = new Event(sb.toString(), val, ts);
-          //log.info("{}",evt);
           try {
             evtsq.put(evt);
-            Thread.currentThread().sleep(10);
           } catch(InterruptedException e) {}
         }
       }
@@ -141,7 +162,7 @@ public class Gorilla {
     Environment env;
     Store store;
     DataGeneratorTask dt;
-    
+
     public WriteTask(Environment env, Store store, DataGeneratorTask dt) {
       this.env = env;
       this.store = store;
@@ -153,34 +174,35 @@ public class Gorilla {
       log.info("write task starts");
       while(!dt.empty()) {
         count[0] = 0;
-        long t1 = System.nanoTime();
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
               try {
                 int batch=10000;
+                long t1 = System.nanoTime();
                 while (!dt.empty()) {
                   if (count[0]>=batch)
                     break;
                   Event evt = dt.poll();
-                  log.info("pull {}", evt);
+                  if(evt == null) break;
+                  //log.info("pull {}", evt);
                   store.put(txn, evt.getKey(), evt.getValue());
                   count[0]++;
                 }
+                long t2 = System.nanoTime();
+                log.info("commit {} transactions in {} mill-seconds", count[0], (t2-t1)/1e6);
               } catch (Exception e) {
                 log.info(e);
               }
             }
           });
-        long t2 = System.nanoTime();
-        log.info("commit {} transactions in {} mill-seconds", count[0], (t2-t1)/1e6);
       }
       log.info("write task stops");
     }
-    
+
   }
-  
-  
+
+
   public static class Shard implements Runnable {
     Environment env;
     Store store;
@@ -209,7 +231,7 @@ public class Gorilla {
           workers[i] = new Thread(new WriteTask(env, store, dt));
           workers[i].start();
         }
-        Thread.currentThread().sleep(15000);
+        Thread.currentThread().sleep(5000);
         dt.stop();
         for(int i=0; i< workers.length; i++) {
           workers[i].join();
@@ -218,7 +240,7 @@ public class Gorilla {
         log.info(e);
       }
     }
-    
+
     Environment getEnv() {
       return env;
     }
@@ -229,18 +251,85 @@ public class Gorilla {
 
   }
 
-  public static void scenario1() {
-    Thread[] workers = new Thread[1];
-    for(int i=0; i< workers.length; i++) {
-      workers[i] = new Thread(new Shard("data/"+i,i));
-      workers[i].start();
-    }
-    for(int i=0; i< workers.length; i++) {
-      try {
-        workers[i].join();
-      } catch(InterruptedException e) {}
+  public static class AnalyticsTask implements Runnable {
+    Shard[] shards;
+    private boolean stop;
+
+    public AnalyticsTask(Shard[] shards) {
+      this.shards = shards;
+      stop =false;
     }
 
+    public void stop() {
+      stop = true;
+    }
+
+    public void run() {
+      log.info("start analyst");
+      while (!stop) {
+        try {
+          for(Shard shard : shards) {
+            Environment env = shard.getEnv();
+            Store store = shard.getStore();
+            env.executeInReadonlyTransaction(new TransactionalExecutable() {
+                @Override
+                public void execute(@NotNull final Transaction txn) {
+                  try (Cursor cursor = store.openCursor(txn)) {
+                    if(cursor.getSearchKeyRange(Event.get("shard1#1|machine00000|CPU")) != null) {
+                      log.info("found count {} {}", cursor.count(), Event.get(cursor.getKey()));
+                      while (cursor.getNext()) {
+                        ByteIterable key = cursor.getKey();
+                        //log.info("key {}", Event.get(key));
+                        ByteIterable value = cursor.getValue();
+                      }
+                    }
+                  }
+                }
+              });
+          }
+        } catch (Exception e) {
+          log.info(e);
+        }
+      }
+      log.info("ends analyst");
+    }
+
+  }
+
+  public static void scenario1() {
+    int c = 2;
+    Shard[] shards = new Shard[c];
+    Thread[] threadcamp1 = new Thread[c];
+    for(int i = 0; i < shards.length; i++) {
+      shards[i] = new Shard("data/"+i,i);
+      threadcamp1[i] = new Thread(shards[i]);
+      threadcamp1[i].start();
+    }
+
+    AnalyticsTask[] analysts = new AnalyticsTask[1];
+    Thread[] threadcamp2 = new Thread[analysts.length];
+    for(int i=0; i< threadcamp2.length; i++) {
+      analysts[i] = new AnalyticsTask(shards);
+      threadcamp2[i] = new Thread(analysts[i]);
+      threadcamp2[i].start();
+    }
+    try {
+      Thread.currentThread().sleep(8000);
+    } catch(InterruptedException e) {}
+
+    for(AnalyticsTask analyst : analysts) {
+      analyst.stop();
+    }
+    for(int i=0; i< threadcamp1.length; i++) {
+      try {
+        threadcamp1[i].join();
+      } catch(InterruptedException e) {}
+    }
+    for(int i=0; i< threadcamp2.length; i++) {
+      try {
+        threadcamp2[i].join();
+      } catch(InterruptedException e) {}
+    }
   }
 
   public static void main( String[] args ) {
