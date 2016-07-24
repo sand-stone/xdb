@@ -3,10 +3,13 @@ package xdb;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ArrayByteIterable;
+import jetbrains.exodus.CompoundByteIterable;
 import org.jetbrains.annotations.NotNull;
 import jetbrains.exodus.management.*;
 import static jetbrains.exodus.bindings.StringBinding.entryToString;
 import static jetbrains.exodus.bindings.StringBinding.stringToEntry;
+import static jetbrains.exodus.bindings.LongBinding.entryToLong;
+import static jetbrains.exodus.bindings.LongBinding.longToEntry;
 import static jetbrains.exodus.env.StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING;
 import java.io.File;
 import java.io.FileInputStream;
@@ -20,62 +23,32 @@ import java.time.*;
 public class Gorilla {
   private static Logger log = LogManager.getLogger(Gorilla.class);
 
-  private static byte[] toBytes(long n, byte[] b, int offset) {
-    b[offset+7] = (byte) (n);
-    n >>>= 8;
-    b[offset+6] = (byte) (n);
-    n >>>= 8;
-    b[offset+5] = (byte) (n);
-    n >>>= 8;
-    b[offset+4] = (byte) (n);
-    n >>>= 8;
-    b[offset+3] = (byte) (n);
-    n >>>= 8;
-    b[offset+2] = (byte) (n);
-    n >>>= 8;
-    b[offset+1] = (byte) (n);
-    n >>>= 8;
-    b[offset] = (byte) (n);
-    return b;
-  }
-
-  private static long toLong(byte[] b, int offset) {
-    return ((((long) b[offset+7]) & 0xFF)
-            + ((((long) b[offset+6]) & 0xFF) << 8)
-            + ((((long) b[offset+5]) & 0xFF) << 16)
-            + ((((long) b[offset+4]) & 0xFF) << 24)
-            + ((((long) b[offset+3]) & 0xFF) << 32)
-            + ((((long) b[offset+2]) & 0xFF) << 40)
-            + ((((long) b[offset+1]) & 0xFF) << 48)
-            + ((((long) b[offset]) & 0xFF) << 56));
-  }
-
   public static class Event {
     String key;
     double val;
     long ts;
 
     public static ByteIterable get(String key) {
-      byte[] k = key.getBytes();
-      byte[] buf = new byte[k.length+8];
-      System.arraycopy(k, 0, buf, 0, k.length);
-      return new ArrayByteIterable(buf);
+      return stringToEntry(key);
     }
 
     public static ByteIterable get(String key, long ts) {
-      byte[] k = key.getBytes();
-      byte[] buf = new byte[k.length+8];
-      System.arraycopy(k, 0, buf, 0, k.length);
-      toBytes(ts, buf, k.length);
-      return new ArrayByteIterable(buf);
+      ByteIterable[] segs = new ByteIterable[2];
+      segs[0] = stringToEntry(key);
+      segs[1] = longToEntry(ts);
+      return new CompoundByteIterable(segs);
     }
 
-    public static String get(ByteIterable key) {
+    public static String getKey(ByteIterable key) {
       byte[] bytes = key.getBytesUnsafe();
-      try {
-        return new String(bytes, 0, bytes.length-10, "US-ASCII");
-      } catch(java.io.UnsupportedEncodingException e) {}
-      return "";
+      return entryToString(key);
+    }
+
+    public static long getTS(ByteIterable key) {
+      byte[] bytes = key.getBytesUnsafe();
+      byte[] d = new byte[8];
+      System.arraycopy(bytes, key.getLength()-8, d, 0, 8);
+      return entryToLong(new ArrayByteIterable(d));
     }
 
     public Event(String key, double val, long ts) {
@@ -93,8 +66,7 @@ public class Gorilla {
     }
 
     public ByteIterable getValue() {
-      byte[] buf = new byte[8];
-      return new ArrayByteIterable(toBytes(Double.doubleToLongBits(val), buf, 0));
+      return longToEntry(Double.doubleToLongBits(val));
     }
 
   }
@@ -202,7 +174,6 @@ public class Gorilla {
 
   }
 
-
   public static class Shard implements Runnable {
     Environment env;
     Store store;
@@ -275,13 +246,16 @@ public class Gorilla {
                 @Override
                 public void execute(@NotNull final Transaction txn) {
                   try (Cursor cursor = store.openCursor(txn)) {
-                    if(cursor.getSearchKeyRange(Event.get("shard1#1|machine00000|CPU")) != null) {
-                      log.info("found count {} {}", cursor.count(), Event.get(cursor.getKey()));
+                    if(cursor.getSearchKeyRange(Event.get("shard1#0|machine1|MEM")) != null) {
+                      log.info("found {} {}", Event.getKey(cursor.getKey()), Event.getTS(cursor.getKey()));
+                      int count = 1;
                       while (cursor.getNext()) {
                         ByteIterable key = cursor.getKey();
-                        //log.info("key {}", Event.get(key));
+                        //log.info("found {} {}", Event.getKey(cursor.getKey()), Event.getTS(cursor.getKey()));
                         ByteIterable value = cursor.getValue();
+                        count++;
                       }
+                      log.info("count {}", count);
                     }
                   }
                 }
