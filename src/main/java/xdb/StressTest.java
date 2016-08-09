@@ -144,8 +144,10 @@ public class StressTest {
     public void run() {
       double sum = 0; double max = 0; double min = 10;
       double avg = 0;
+      final long[] count = new long[1];
       for (int tx=0; tx < 100000; tx++) {
         long t1 = System.nanoTime();
+        count[0] = 0;
         env.executeInReadonlyTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
@@ -154,7 +156,7 @@ public class StressTest {
                   ByteIterable key = cursor.getKey();
                   ByteIterable value = cursor.getValue();
                   Event evt = Event.getEvent(key, value);
-                  //log.info("key {}", evt);
+                  count[0]++;
                 } 
               }
             }
@@ -166,9 +168,7 @@ public class StressTest {
         if(d>max) max = d;
         if(d<min) min = d;
         //if(d-avg > 0.1) {log.info("read d = {} avg ={} min={} max={}", d, avg, min, max);}
-        if (tx%100==0) {
-          log.info("read d = {} avg ={} min={} max={}", d, avg, min, max);
-        }
+        log.info("read count = {} d = {} avg ={} min={} max={}", count[0], d, avg, min, max);
       }
     }
   }
