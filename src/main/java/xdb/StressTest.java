@@ -79,7 +79,7 @@ public class StressTest {
           log.info("start writing");
           Event evt = new Event(UUID.randomUUID(), 100000);
           log.info(evt);
-          store.put(txn, evt.getKey(), evt.getValue());
+          store.add(txn, evt.getKey(), evt.getValue());
         }
       });
     env.executeInReadonlyTransaction(new TransactionalExecutable() {
@@ -116,7 +116,7 @@ public class StressTest {
             public void execute(@NotNull final Transaction txn) {
               for (int i = 0; i < 10000; i++) {
                 Event evt = new Event(UUID.randomUUID(), i);
-                store.put(txn, evt.getKey(), evt.getValue());
+                store.add(txn, evt.getKey(), evt.getValue());
               }
             }
           });
