@@ -79,7 +79,7 @@ public class StressTest {
           log.info("start writing");
           Event evt = new Event(UUID.randomUUID(), 100000);
           log.info(evt);
-          store.put(txn, evt.getKey(), evt.getValue());          
+          store.put(txn, evt.getKey(), evt.getValue());
         }
       });
     env.executeInReadonlyTransaction(new TransactionalExecutable() {
@@ -116,7 +116,7 @@ public class StressTest {
             public void execute(@NotNull final Transaction txn) {
               for (int i = 0; i < 10000; i++) {
                 Event evt = new Event(UUID.randomUUID(), i);
-                store.put(txn, evt.getKey(), evt.getValue());          
+                store.put(txn, evt.getKey(), evt.getValue());
               }
             }
           });
@@ -135,10 +135,11 @@ public class StressTest {
   public static class ReadTask implements Runnable {
     Environment env;
     Store store;
-
+    Random rnd;
     public ReadTask(Environment env, Store store) {
       this.env = env;
       this.store = store;
+      rnd = new Random();
     }
 
     public void run() {
@@ -146,6 +147,7 @@ public class StressTest {
       double avg = 0;
       final long[] count = new long[1];
       for (int tx=0; tx < 100000; tx++) {
+        try {Thread.currentThread().sleep(rnd.nextInt(500));} catch(Exception e) {}
         long t1 = System.nanoTime();
         count[0] = 0;
         env.executeInReadonlyTransaction(new TransactionalExecutable() {
@@ -157,7 +159,7 @@ public class StressTest {
                   ByteIterable value = cursor.getValue();
                   Event evt = Event.getEvent(key, value);
                   count[0]++;
-                } 
+                }
               }
             }
           });
@@ -172,7 +174,7 @@ public class StressTest {
       }
     }
   }
-  
+
   public static void main( String[] args ) throws Exception {
     //doTest();
     final Environment env = Environments.newInstance("data");
@@ -188,7 +190,6 @@ public class StressTest {
       workers[i] = new Thread(new WriteTask(env, store));
       workers[i].start();
     }
-    Thread.currentThread().sleep(1000);
     for(int i=workers.length/2; i< workers.length; i++) {
       workers[i] = new Thread(new ReadTask(env, store));
       workers[i].start();
