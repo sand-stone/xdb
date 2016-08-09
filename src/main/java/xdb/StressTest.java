@@ -198,6 +198,11 @@ public class StressTest {
     for(int i=0; i< workers.length; i++) {
       workers[i].join();
     }
+    for(String name :  env.getStatistics().getItemNames()) {
+      StatisticsItem item = env.getStatistics().getStatisticsItem(name);
+      log.info("{}={}",name, item.getTotal());
+    }
+    env.close();
   }
 
 }
