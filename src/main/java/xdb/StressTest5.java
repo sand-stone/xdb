@@ -122,7 +122,7 @@ public class StressTest5 {
             break;
           batch[c++] = e;
         }
-        p = p++%envs.length;
+        p = ++p%envs.length;
         write(envs[p], stores[p], batch, c);
       }
     }
