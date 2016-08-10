@@ -110,6 +110,7 @@ public class StressTest5 {
 
     public void run() {
       Event[] batch = new Event[100000];
+      int n = 0;
       while(!stop) {
         if(evts.size()<=0)
           continue;
@@ -120,7 +121,7 @@ public class StressTest5 {
             break;
           batch[c++] = e;
         }
-        int n = rnd.nextInt(envs.length);
+        n = n++%envs.length;
         write(envs[n], stores[n], batch, c);
       }
     }
@@ -200,16 +201,16 @@ public class StressTest5 {
 
 
   public static void main( String[] args ) throws Exception {
-    int shards = 300;
+    int shards = 2048;
     final Environment[] envs = new Environment[shards];
     final Store[] stores = new Store[shards]; final int[] e = new int[1];
     EnvironmentConfig config = new EnvironmentConfig();
-    config.setLogDurableWrite(true);
+    /*config.setLogDurableWrite(true);
     config.setLogFileSize(81920);
     config.setGcMinUtilization(80);
     config.setGcStartIn(10000);
     config.setTreeMaxPageSize(512);
-    config.setTreeNodesCacheSize(8192);
+    config.setTreeNodesCacheSize(8192);*/
     for (int i = 0; i < shards; i++) {
       envs[i] = Environments.newInstance("data"+i, config);
       e[0] = i;
@@ -222,7 +223,7 @@ public class StressTest5 {
         });
     }
 
-    int cw = 20; int rw = 15;
+    int cw = 20; int rw = 10;
     Thread[] workers = new Thread[cw+rw];
     for(int i = 0; i< cw; i++) {
       workers[i] = new Thread(new WriteTask(envs, stores));
@@ -235,7 +236,7 @@ public class StressTest5 {
     }
 
     int count = 1000000000;
-    int n = 5;
+    int n = 2;
     Thread[] producers = new Thread[n];
     for(int i = 0; i < n; i++) {
       producers[i] = new Thread(new Producer(count/n));
