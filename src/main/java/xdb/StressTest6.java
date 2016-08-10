@@ -182,7 +182,7 @@ public class StressTest6 {
         evts.offer(evt);
         if(count%10000000 == 0)
           log.info("evts needs to be produced: {}", count);
-        while(evts.size()>10000000) {
+        while(evts.size()>150000000) {
           try {Thread.currentThread().sleep(rnd.nextInt(1000));} catch(Exception e) {}
         }
       }
@@ -221,7 +221,7 @@ public class StressTest6 {
     while(count-->0) {
       Event evt = new Event(UUID.randomUUID(), count);
       evts.offer(evt);
-      if(evts.size()>10000000)
+      if(evts.size()>100000000)
         break;
     }
 
