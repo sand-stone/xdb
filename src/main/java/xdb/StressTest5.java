@@ -107,7 +107,7 @@ public class StressTest5 {
         max = d;
       if(d < min)
         min = d;
-      log.info("write tx = {} time {} avg ={} min={} max={}", count, d, avg, min, max);
+      log.info("write partition {} count = {} time {} avg ={} min={} max={}", p, count, d, avg, min, max);
     }
 
     public void run() {
