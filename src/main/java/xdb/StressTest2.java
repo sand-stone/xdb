@@ -25,7 +25,7 @@ import java.util.concurrent.*;
 import java.time.*;
 
 public class StressTest2 {
-  private static Logger log = LogManager.getLogger(StressTest.class);
+  private static Logger log = LogManager.getLogger(StressTest2.class);
 
   public static class Event {
     UUID key;
@@ -146,7 +146,7 @@ public class StressTest2 {
   }
 
   public static void main( String[] args ) throws Exception {
-    int shards = 10;
+    int shards = 20;
     final Environment[] envs = new Environment[shards];
     final Store[] stores = new Store[shards]; final int[] e = new int[1];
     for (int i = 0; i < shards; i++) {
