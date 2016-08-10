@@ -181,7 +181,7 @@ public class StressTest5 {
 
 
   public static void main( String[] args ) throws Exception {
-    int shards = 100;
+    int shards = 300;
     final Environment[] envs = new Environment[shards];
     final Store[] stores = new Store[shards]; final int[] e = new int[1];
     EnvironmentConfig config = new EnvironmentConfig();
@@ -215,21 +215,21 @@ public class StressTest5 {
       workers[i].start();
     }
 
-    int count = 100000000;
+    int count = 1000000000;
     Random rnd = new Random();
 
     while(count-->0) {
       Event evt = new Event(metrics[rnd.nextInt(metrics.length)], System.nanoTime(), count);
       evts.offer(evt);
-      if(count%1000000 == 0)
-        log.info("evts produced: {}", count);
+      if(count%10000000 == 0)
+        log.info("evts needs to produced: {}", count);
     }
 
     while(true) {
       if (evts.size() <= 0)
         break;
       try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
-      log.info("evts left: {}", evts.size());
+      log.info("evts left to processed {}", evts.size());
     }
 
     stop = true;
