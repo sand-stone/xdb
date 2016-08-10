@@ -167,6 +167,25 @@ public class StressTest5 {
 
   }
 
+   public static class Producer implements Runnable {
+     int count;
+     
+     public Producer(int count) {
+      this.count = count;
+     }
+
+    public void run() {
+      Random rnd = new Random();
+      while(count-->0) {
+        Event evt = new Event(metrics[rnd.nextInt(metrics.length)], System.nanoTime(), count);
+        evts.offer(evt);
+        if(count%10000000 == 0)
+          log.info("evts needs to produced: {}", count);
+      }
+    }
+
+  }
+  
   private static LinkedBlockingQueue<Event> evts = new LinkedBlockingQueue<Event>();
   private static boolean stop = false;
   public static String[] metrics;
@@ -203,7 +222,7 @@ public class StressTest5 {
         });
     }
 
-    int cw = 20; int rw = 20;
+    int cw = 20; int rw = 15;
     Thread[] workers = new Thread[cw+rw];
     for(int i = 0; i< cw; i++) {
       workers[i] = new Thread(new WriteTask(envs, stores));
@@ -216,15 +235,17 @@ public class StressTest5 {
     }
 
     int count = 1000000000;
-    Random rnd = new Random();
-
-    while(count-->0) {
-      Event evt = new Event(metrics[rnd.nextInt(metrics.length)], System.nanoTime(), count);
-      evts.offer(evt);
-      if(count%10000000 == 0)
-        log.info("evts needs to produced: {}", count);
+    int n = 5;
+    Thread[] producers = new Thread[n];
+    for(int i = 0; i < n; i++) {
+      producers[i] = new Thread(new Producer(count/n));
+      producers[i].start();
     }
 
+    for(int i=0; i< n; i++) {
+      producers[i].join();
+    }
+    
     while(true) {
       if (evts.size() <= 0)
         break;
