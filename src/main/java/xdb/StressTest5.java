@@ -73,6 +73,7 @@ public class StressTest5 {
     Store[] stores;
     Random rnd;
     double sum, avg, min, max, total;
+    int p;
 
     public WriteTask(Environment[] envs, Store[] stores) {
       this.envs = envs;
@@ -83,6 +84,7 @@ public class StressTest5 {
       min = 10000;
       max = 0;
       total = 0;
+      p = 0;
     }
 
     private void write(Environment env, Store store, Event[] batch, final int count) {
@@ -110,7 +112,6 @@ public class StressTest5 {
 
     public void run() {
       Event[] batch = new Event[100000];
-      int n = 0;
       while(!stop) {
         if(evts.size()<=0)
           continue;
@@ -121,8 +122,8 @@ public class StressTest5 {
             break;
           batch[c++] = e;
         }
-        n = n++%envs.length;
-        write(envs[n], stores[n], batch, c);
+        p = p++%envs.length;
+        write(envs[p], stores[p], batch, c);
       }
     }
 
