@@ -84,7 +84,7 @@ public class StressTest5 {
       min = 10000;
       max = 0;
       total = 0;
-      p = 0;
+      p = rnd.nextInt(envs.length);
     }
 
     private void write(Environment env, Store store, Event[] batch, final int count) {
