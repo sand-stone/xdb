@@ -91,7 +91,7 @@ public class StressTest3 {
       double avg = 0;
       final long[] count = new long[1];
       for (int tx=0; tx < 100000; tx++) {
-        try {Thread.currentThread().sleep(rnd.nextInt(500));} catch(Exception e) {}
+        try {Thread.currentThread().sleep(rnd.nextInt(1000));} catch(Exception e) {}
         long t1 = System.nanoTime();
         count[0] = 0; final int[] s = new int[1];
         for (int c = 0; c < stores.length; c++) {
@@ -135,13 +135,13 @@ public class StressTest3 {
           }
         });
     }
-    int cw = 2 * shards; int rw = 5;
+    int cw = shards; int rw = 5;
     Thread[] workers = new Thread[cw+rw];
     for(int i = 0; i< shards; i++) {
       workers[i] = new Thread(new WriteTask(envs[i], stores[i]));
       workers[i].start();
-      workers[i+1] = new Thread(new WriteTask(envs[i], stores[i]));
-      workers[i+1].start();
+      //workers[i+1] = new Thread(new WriteTask(envs[i], stores[i]));
+      //workers[i+1].start();
     }
     
     for(int i = cw; i< cw + rw; i++) {
