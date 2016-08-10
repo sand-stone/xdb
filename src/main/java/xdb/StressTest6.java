@@ -194,7 +194,7 @@ public class StressTest6 {
   private static boolean stop = false;
 
   public static void main( String[] args ) throws Exception {
-    int shards = 2048;
+    int shards = 256;
     final Environment[] envs = new Environment[shards];
     final Store[] stores = new Store[shards]; final int[] e = new int[1];
     EnvironmentConfig config = new EnvironmentConfig();
@@ -225,7 +225,7 @@ public class StressTest6 {
         break;
     }
 
-    int cw = 20; int rw = 10;
+    int cw = 8; int rw = 5;
     Thread[] workers = new Thread[cw+rw];
     for(int i = 0; i< cw; i++) {
       workers[i] = new Thread(new WriteTask(envs, stores));
