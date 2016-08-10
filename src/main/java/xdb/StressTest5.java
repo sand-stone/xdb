@@ -139,6 +139,7 @@ public class StressTest5 {
 
     private void read(Environment env, Store store) {
       long t1 = System.nanoTime();
+      final int[] count = new int[1];
       env.executeInReadonlyTransaction(new TransactionalExecutable() {
           @Override
           public void execute(@NotNull final Transaction txn) {
@@ -146,13 +147,14 @@ public class StressTest5 {
               while (cursor.getNext()) {
                 ByteIterable key = cursor.getKey();
                 ByteIterable value = cursor.getValue();
+                count[0]++;
               }
             }
           }
         });
       long t2 = System.nanoTime();
       double d = (t2-t1)/1e9;
-      log.info("scan tx = {}", d);
+      log.info("scan rows {} tx = {}", count[0], d);
     }
 
     public void run() {
@@ -225,6 +227,7 @@ public class StressTest5 {
       if (evts.size() <= 0)
         break;
       try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
+      log.info("evts left: {}", evts.size());
     }
 
     stop = true;
