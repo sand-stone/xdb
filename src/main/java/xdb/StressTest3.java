@@ -71,7 +71,7 @@ public class StressTest3 {
         avg = sum/tx;
         if(d>max) max = d;
         if(d<min) min = d;
-        log.info("write d = {} avg ={} min={} max={}", d, avg, min, max);
+        log.info("write tx={} d = {} avg ={} min={} max={}", tx, d, avg, min, max);
       }
     }
   }

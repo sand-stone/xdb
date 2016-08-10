@@ -160,13 +160,13 @@ public class StressTest2 {
         }
       });
     }
-    int cw = 2 * shards; int rw = 5;
+    int cw = shards; int rw = 5;
     Thread[] workers = new Thread[cw+rw];
     for(int i = 0; i< shards; i++) {
       workers[i] = new Thread(new WriteTask(envs[i], stores[i]));
       workers[i].start();
-      workers[i+1] = new Thread(new WriteTask(envs[i], stores[i]));
-      workers[i+1].start();
+      //workers[i+1] = new Thread(new WriteTask(envs[i], stores[i]));
+      //workers[i+1].start();
     }
     
     for(int i = cw; i< cw + rw; i++) {
