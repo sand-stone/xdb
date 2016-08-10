@@ -241,7 +241,7 @@ public class StressTest5 {
     }
 
     int count = 1000000000;
-    int n = 2;
+    int n = 4;
     Thread[] producers = new Thread[n];
     for(int i = 0; i < n; i++) {
       producers[i] = new Thread(new Producer(count/n));
