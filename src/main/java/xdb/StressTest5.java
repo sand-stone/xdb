@@ -221,6 +221,8 @@ public class StressTest5 {
     while(count-->0) {
       Event evt = new Event(metrics[rnd.nextInt(metrics.length)], System.nanoTime(), count);
       evts.offer(evt);
+      if(count%1000000 == 0)
+        log.info("evts produced: {}", count);
     }
 
     while(true) {
