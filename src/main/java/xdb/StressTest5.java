@@ -168,12 +168,12 @@ public class StressTest5 {
 
   }
 
-   public static class Producer implements Runnable {
-     int count;
-     
-     public Producer(int count) {
+  public static class Producer implements Runnable {
+    int count;
+
+    public Producer(int count) {
       this.count = count;
-     }
+    }
 
     public void run() {
       Random rnd = new Random();
@@ -182,11 +182,14 @@ public class StressTest5 {
         evts.offer(evt);
         if(count%10000000 == 0)
           log.info("evts needs to produced: {}", count);
+        while(evts.size()>10000000) {
+          try {Thread.currentThread().sleep(rnd.nextInt(1000));} catch(Exception e) {}
+        }
       }
     }
 
   }
-  
+
   private static LinkedBlockingQueue<Event> evts = new LinkedBlockingQueue<Event>();
   private static boolean stop = false;
   public static String[] metrics;
@@ -206,11 +209,11 @@ public class StressTest5 {
     final Store[] stores = new Store[shards]; final int[] e = new int[1];
     EnvironmentConfig config = new EnvironmentConfig();
     /*config.setLogDurableWrite(true);
-    config.setLogFileSize(81920);
-    config.setGcMinUtilization(80);
-    config.setGcStartIn(10000);
-    config.setTreeMaxPageSize(512);
-    config.setTreeNodesCacheSize(8192);*/
+      config.setLogFileSize(81920);
+      config.setGcMinUtilization(80);
+      config.setGcStartIn(10000);
+      config.setTreeMaxPageSize(512);
+      config.setTreeNodesCacheSize(8192);*/
     for (int i = 0; i < shards; i++) {
       envs[i] = Environments.newInstance("data"+i, config);
       e[0] = i;
@@ -246,7 +249,7 @@ public class StressTest5 {
     for(int i=0; i< n; i++) {
       producers[i].join();
     }
-    
+
     while(true) {
       if (evts.size() <= 0)
         break;
