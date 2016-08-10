@@ -100,7 +100,7 @@ public class StressTest5 {
       sum += d;
       total += count;
       avg = sum/(total);
-      d /= count;
+      d /= (count==0?1 : count);
       if(d > max)
         max = d;
       if(d < min)
@@ -138,8 +138,7 @@ public class StressTest5 {
       rnd = new Random();
     }
 
-    private void read(Environment env, Store store) {
-      long t1 = System.nanoTime();
+    private int read(Environment env, Store store) {
       final int[] count = new int[1];
       env.executeInReadonlyTransaction(new TransactionalExecutable() {
           @Override
@@ -153,16 +152,19 @@ public class StressTest5 {
             }
           }
         });
-      long t2 = System.nanoTime();
-      double d = (t2-t1)/1e9;
-      log.info("scan rows {} tx = {}", count[0], d);
+      return count[0];
     }
 
     public void run() {
       while(!stop) {
         try {Thread.currentThread().sleep(rnd.nextInt(500));} catch(Exception e) {}
         int n = rnd.nextInt(envs.length);
-        read(envs[n], stores[n]);
+        long t1 = System.nanoTime();
+        int c = read(envs[n], stores[n]);
+        long t2 = System.nanoTime();
+        double d = (t2-t1)/1e9;
+        log.info("scan partition {} rows {} tx = {}", n, c, d);
+
       }
     }
 
