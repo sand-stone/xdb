@@ -23,6 +23,7 @@ import org.apache.logging.log4j.LogManager;
 import java.util.*;
 import java.util.concurrent.*;
 import java.time.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class StressTest6 {
   private static Logger log = LogManager.getLogger(StressTest6.class);
@@ -71,8 +72,9 @@ public class StressTest6 {
     Random rnd;
     double sum, avg, min, max, total;
     int p;
-
-    public WriteTask(Environment[] envs, Store[] stores) {
+    int count;
+    
+    public WriteTask(Environment[] envs, Store[] stores, int count) {
       this.envs = envs;
       this.stores = stores;
       this.rnd = new Random();
@@ -82,14 +84,15 @@ public class StressTest6 {
       max = 0;
       total = 0;
       p = rnd.nextInt(envs.length);
+      this.count = count;
     }
 
-    private void write(Environment env, Store store, Event[] batch, final int count) {
+    private void write(Environment env, Store store, Event[] batch) {
       long t1 = System.nanoTime();
       env.executeInTransaction(new TransactionalExecutable() {
           @Override
           public void execute(@NotNull final Transaction txn) {
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < batch.length; i++) {
               store.add(txn, batch[i].getKey(), batch[i].getValue());
             }
           }
@@ -111,22 +114,15 @@ public class StressTest6 {
       Event[] batch = new Event[100000];
       int c = 0;
       while(!stop) {
-        if(evts.size()<=0)
-          continue;
-        while(c<batch.length&&evts.size()>0) {
-          Event e = evts.poll();
-          if(e==null)
-            break;
-          batch[c++] = e;
-        }
-        if(c<=1000) {
-          try {Thread.currentThread().sleep(rnd.nextInt(1000));} catch(Exception e) {}
-          if(evts.size()>0)
-            continue;
+        if(count<=0)
+          break;
+        int b = batch.length;
+        while(--b > 0) {
+          batch[b] = new Event(UUID.randomUUID(), b);
         }
         p = ++p%envs.length;
-        write(envs[p], stores[p], batch, c);
-        c = 0;
+        write(envs[p], stores[p], batch);
+        counter.addAndGet(batch.length);
       }
     }
 
@@ -174,26 +170,7 @@ public class StressTest6 {
 
   }
 
-  public static class Producer implements Runnable {
-    int count;
-
-    public Producer(int count) {
-      this.count = count;
-    }
-
-    public void run() {
-      Random rnd = new Random();
-      while(count-->0) {
-        Event evt = new Event(UUID.randomUUID(), count);
-        evts.offer(evt);
-        if(count%10000000 == 0)
-          log.info("evts needs to be produced: {}", count);
-      }
-    }
-
-  }
-
-  private static LinkedBlockingQueue<Event> evts = new LinkedBlockingQueue<Event>();
+  static AtomicInteger counter = new AtomicInteger(0);
   private static boolean stop = false;
 
   public static void main( String[] args ) throws Exception {
@@ -213,28 +190,17 @@ public class StressTest6 {
       stores[i] = envs[i].computeInTransaction(new TransactionalComputable<Store>() {
           @Override
           public Store compute(@NotNull final Transaction txn) {
-            return envs[e[0]].openStore("stressdb", WITHOUT_DUPLICATES_WITH_PREFIXING, txn);
-            //return envs[e[0]].openStore("stressdb", WITHOUT_DUPLICATES, txn);
+            //return envs[e[0]].openStore("stressdb", WITHOUT_DUPLICATES_WITH_PREFIXING, txn);
+            return envs[e[0]].openStore("stressdb", WITHOUT_DUPLICATES, txn);
           }
         });
     }
 
     int count = 1000000000;
-    int n = 10;
-    Thread[] producers = new Thread[n];
-    for(int i = 0; i < n; i++) {
-      producers[i] = new Thread(new Producer(count/n));
-      producers[i].start();
-    }
-
-    for(int i=0; i< n; i++) {
-      producers[i].join();
-    }
-
-    int cw = 30; int rw = 5;
+    int cw = 40; int rw = 5;
     Thread[] workers = new Thread[cw+rw];
     for(int i = 0; i< cw; i++) {
-      workers[i] = new Thread(new WriteTask(envs, stores));
+      workers[i] = new Thread(new WriteTask(envs, stores, count/cw));
       workers[i].start();
     }
 
@@ -244,10 +210,10 @@ public class StressTest6 {
     }
 
     while(true) {
-      if (evts.size() <= 0)
+      if(counter.get() >= count)
         break;
       try {Thread.currentThread().sleep(5000);} catch(Exception ex) {}
-      log.info("evts left to be processed {}", evts.size());
+      log.info("evts processed {}", counter.get());
     }
 
     stop = true;
