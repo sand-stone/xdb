@@ -109,18 +109,24 @@ public class StressTest6 {
 
     public void run() {
       Event[] batch = new Event[100000];
+      int c = 0;
       while(!stop) {
         if(evts.size()<=0)
           continue;
-        int c = 0;
         while(c<batch.length&&evts.size()>0) {
           Event e = evts.poll();
           if(e==null)
             break;
           batch[c++] = e;
         }
+        if(c<=1000) {
+          try {Thread.currentThread().sleep(rnd.nextInt(10));} catch(Exception e) {}
+          if(evts.size()>0)
+            continue;
+        }
         p = ++p%envs.length;
         write(envs[p], stores[p], batch, c);
+        c = 0;
       }
     }
 
