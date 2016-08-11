@@ -107,7 +107,7 @@ public class StressTest6 {
         max = d;
       if(d < min)
         min = d;
-      log.info("write partition {} count = {} time {} avg ={} min={} max={}", p, count, d, avg, min, max);
+      log.info("write partition {} count = {} time {} avg ={} min={} max={}", p, batch.length, d, avg, min, max);
     }
 
     public void run() {
@@ -117,12 +117,13 @@ public class StressTest6 {
         if(count<=0)
           break;
         int b = batch.length;
-        while(--b > 0) {
+        while(--b >= 0) {
           batch[b] = new Event(UUID.randomUUID(), b);
         }
         p = ++p%envs.length;
         write(envs[p], stores[p], batch);
         counter.addAndGet(batch.length);
+        count -= batch.length;
       }
     }
 
