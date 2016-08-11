@@ -29,13 +29,14 @@ public class StressTest6 {
   private static Logger log = LogManager.getLogger(StressTest6.class);
 
   public static class Event {
-    UUID key;
+    long key1;
+    long key2;
     double val;
 
-    public static ByteIterable get(UUID key) {
+    public static ByteIterable get(long p1, long p2) {
       final LightOutputStream output = new LightOutputStream();
-      LongBinding.writeCompressed(output, key.getLeastSignificantBits());
-      LongBinding.writeCompressed(output, key.getMostSignificantBits());
+      LongBinding.writeCompressed(output, p1);
+      LongBinding.writeCompressed(output, p2);
       return output.asArrayByteIterable();
     }
 
@@ -44,20 +45,21 @@ public class StressTest6 {
       long p1 = LongBinding.readCompressed(iterator);
       long p2 = LongBinding.readCompressed(iterator);
       long v = entryToLong(vbytes);
-      return new Event(new UUID(p2, p1), Double.longBitsToDouble(v));
+      return new Event(p1, p2, Double.longBitsToDouble(v));
     }
 
-    public Event(UUID key, double val) {
-      this.key = key;
+    public Event(long key1, long key2, double val) {
+      this.key1 = key1;
+      this.key2 = key2;
       this.val = val;
     }
 
     public String toString() {
-      return key + "; val=" + val;
+      return key1 + ":" + key2 + "; val=" + val;
     }
 
     public ByteIterable getKey() {
-      return get(key);
+      return get(key1, key2);
     }
 
     public ByteIterable getValue() {
@@ -73,7 +75,7 @@ public class StressTest6 {
     double sum, avg, min, max, total;
     int p;
     int count;
-    
+
     public WriteTask(Environment[] envs, Store[] stores, int count) {
       this.envs = envs;
       this.stores = stores;
@@ -83,6 +85,7 @@ public class StressTest6 {
       min = 10000;
       max = 0;
       total = 0;
+      rnd.setSeed(Thread.currentThread().getId());
       p = rnd.nextInt(envs.length);
       this.count = count;
     }
@@ -118,7 +121,7 @@ public class StressTest6 {
           break;
         int b = batch.length;
         while(--b >= 0) {
-          batch[b] = new Event(UUID.randomUUID(), b);
+          batch[b] = new Event(rnd.nextLong(), rnd.nextLong(), b);
         }
         p = ++p%envs.length;
         write(envs[p], stores[p], batch);
