@@ -188,9 +188,6 @@ public class StressTest6 {
         evts.offer(evt);
         if(count%10000000 == 0)
           log.info("evts needs to be produced: {}", count);
-        while(evts.size()>150000000) {
-          try {Thread.currentThread().sleep(rnd.nextInt(1000));} catch(Exception e) {}
-        }
       }
     }
 
@@ -223,15 +220,18 @@ public class StressTest6 {
     }
 
     int count = 1000000000;
-    Random rnd = new Random();
-    while(count-->0) {
-      Event evt = new Event(UUID.randomUUID(), count);
-      evts.offer(evt);
-      if(evts.size()%10000000 == 0)
-        log.info("produced {} ", evts.size());
+    int n = 10;
+    Thread[] producers = new Thread[n];
+    for(int i = 0; i < n; i++) {
+      producers[i] = new Thread(new Producer(count/n));
+      producers[i].start();
     }
 
-    int cw = 20; int rw = 4;
+    for(int i=0; i< n; i++) {
+      producers[i].join();
+    }
+
+    int cw = 30; int rw = 5;
     Thread[] workers = new Thread[cw+rw];
     for(int i = 0; i< cw; i++) {
       workers[i] = new Thread(new WriteTask(envs, stores));
@@ -242,17 +242,6 @@ public class StressTest6 {
       workers[i] = new Thread(new ReadTask(envs, stores));
       workers[i].start();
     }
-
-    /*int n = 10;
-    Thread[] producers = new Thread[n];
-    for(int i = 0; i < n; i++) {
-      producers[i] = new Thread(new Producer(count/n));
-      producers[i].start();
-    }
-
-    for(int i=0; i< n; i++) {
-      producers[i].join();
-      }*/
 
     while(true) {
       if (evts.size() <= 0)
