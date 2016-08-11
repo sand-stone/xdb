@@ -120,7 +120,7 @@ public class StressTest6 {
           batch[c++] = e;
         }
         if(c<=1000) {
-          try {Thread.currentThread().sleep(rnd.nextInt(10));} catch(Exception e) {}
+          try {Thread.currentThread().sleep(rnd.nextInt(1000));} catch(Exception e) {}
           if(evts.size()>0)
             continue;
         }
