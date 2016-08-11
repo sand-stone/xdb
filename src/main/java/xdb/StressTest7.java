@@ -208,11 +208,11 @@ public class StressTest7 {
       });
 
     int count = 50000; final int batch = 1000;
-    Event[] evts = new Event[batch];
-    for(int i = 0; i < count; i++) {
+    final Event[] evts = new Event[batch];
+    for(int i = 0; i < batch; i++) {
       for (int j = 0; j < batch; j++) {
         UUID g = UUID.randomUUID();
-        evts[i] = new Event(g.getLeastSignificantBits(), g.getMostSignificantBits(), j);
+        evts[j] = new Event(g.getLeastSignificantBits(), g.getMostSignificantBits(), j);
       }
       env.executeInTransaction(new TransactionalExecutable() {
           @Override
