@@ -227,7 +227,7 @@ public class StressTest6 {
     while(count-->0) {
       Event evt = new Event(UUID.randomUUID(), count);
       evts.offer(evt);
-      if(evts.size()>100000000)
+      if(evts.size()>1000000)
         break;
     }
 
