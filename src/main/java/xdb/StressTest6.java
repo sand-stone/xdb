@@ -231,7 +231,7 @@ public class StressTest6 {
         break;
     }
 
-    int cw = 8; int rw = 5;
+    int cw = 8; int rw = 4;
     Thread[] workers = new Thread[cw+rw];
     for(int i = 0; i< cw; i++) {
       workers[i] = new Thread(new WriteTask(envs, stores));
@@ -243,7 +243,7 @@ public class StressTest6 {
       workers[i].start();
     }
 
-    int n = 4;
+    int n = 10;
     Thread[] producers = new Thread[n];
     for(int i = 0; i < n; i++) {
       producers[i] = new Thread(new Producer(count/n));
