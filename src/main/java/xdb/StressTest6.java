@@ -125,9 +125,13 @@ public class StressTest6 {
         }
         p = ++p%envs.length;
         write(envs[p], stores[p], batch);
-        counter.addAndGet(batch.length);
+        if(++c>20) {
+          counter.addAndGet(batch.length*c);
+          c = 0;
+        }
         count -= batch.length;
       }
+      counter.addAndGet(batch.length*c);
     }
 
   }
