@@ -198,7 +198,7 @@ public class StressTest6 {
     }
 
     int count = 1000000000;
-    int cw = 40; int rw = 5;
+    int cw = 50; int rw = 10;
     Thread[] workers = new Thread[cw+rw];
     for(int i = 0; i< cw; i++) {
       workers[i] = new Thread(new WriteTask(envs, stores, count/cw));
