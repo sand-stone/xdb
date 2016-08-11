@@ -169,7 +169,7 @@ public class StressTest6 {
 
     public void run() {
       while(!stop) {
-        try {Thread.currentThread().sleep(rnd.nextInt(5000));} catch(Exception e) {}
+        try {Thread.currentThread().sleep(rnd.nextInt(15000));} catch(Exception e) {}
         int n = rnd.nextInt(envs.length);
         long t1 = System.nanoTime();
         int c = read(envs[n], stores[n]);
@@ -209,7 +209,7 @@ public class StressTest6 {
     }
 
     int count = 1000000000;
-    int cw = 30; int rw = 5;
+    int cw = 10; int rw = 5;
     Thread[] workers = new Thread[cw+rw];
     for(int i = 0; i< cw; i++) {
       workers[i] = new Thread(new WriteTask(envs, stores, count/cw));
