@@ -187,11 +187,11 @@ public class StressTest7 {
 
   public static void main( String[] args ) throws Exception {
     EnvironmentConfig config = new EnvironmentConfig();
-    config.setGcStartIn(600000);
-    config.setGcRunPeriod(3000);
+    config.setGcStartIn(300);
+    config.setGcRunPeriod(1000);
     config.setGcUseExclusiveTransaction(false);
-    config.setGcTransactionAcquireTimeout(1000);
-    config.setGcRunPeriod(300000);
+    config.setGcTransactionAcquireTimeout(100);
+    config.setGcRunPeriod(300);
     /*config.setLogDurableWrite(true);
       config.setLogFileSize(81920);
       config.setGcMinUtilization(80);
