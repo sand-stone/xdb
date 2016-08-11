@@ -54,6 +54,12 @@ public class StressTest6 {
       this.val = val;
     }
 
+    public void set(long p1, long p2, double val) {
+      key1 = p1;
+      key2 = p2;
+      this.val = val;
+    }
+    
     public String toString() {
       return key1 + ":" + key2 + "; val=" + val;
     }
@@ -115,23 +121,21 @@ public class StressTest6 {
 
     public void run() {
       Event[] batch = new Event[100000];
-      int c = 0;
+      for(int i = 0; i < batch.length; i++)
+        batch[i] = new Event(0, 0, 0);      
       while(!stop) {
         if(count<=0)
           break;
         int b = batch.length;
         while(--b >= 0) {
-          batch[b] = new Event(rnd.nextLong(), rnd.nextLong(), b);
+          UUID g = UUID.randomUUID();
+          batch[b].set(g.getLeastSignificantBits(), g.getMostSignificantBits(), b);
         }
         p = ++p%envs.length;
         write(envs[p], stores[p], batch);
-        if(++c>20) {
-          counter.addAndGet(batch.length*c);
-          c = 0;
-        }
+        counter.addAndGet(batch.length);
         count -= batch.length;
       }
-      counter.addAndGet(batch.length*c);
     }
 
   }
@@ -182,7 +186,7 @@ public class StressTest6 {
   private static boolean stop = false;
 
   public static void main( String[] args ) throws Exception {
-    int shards = 1024;
+    int shards = 512;
     final Environment[] envs = new Environment[shards];
     final Store[] stores = new Store[shards]; final int[] e = new int[1];
     EnvironmentConfig config = new EnvironmentConfig();
@@ -205,7 +209,7 @@ public class StressTest6 {
     }
 
     int count = 1000000000;
-    int cw = 50; int rw = 10;
+    int cw = 30; int rw = 5;
     Thread[] workers = new Thread[cw+rw];
     for(int i = 0; i< cw; i++) {
       workers[i] = new Thread(new WriteTask(envs, stores, count/cw));
