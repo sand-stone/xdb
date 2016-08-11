@@ -161,7 +161,7 @@ public class StressTest6 {
 
     public void run() {
       while(!stop) {
-        try {Thread.currentThread().sleep(rnd.nextInt(500));} catch(Exception e) {}
+        try {Thread.currentThread().sleep(rnd.nextInt(5000));} catch(Exception e) {}
         int n = rnd.nextInt(envs.length);
         long t1 = System.nanoTime();
         int c = read(envs[n], stores[n]);
@@ -200,7 +200,7 @@ public class StressTest6 {
   private static boolean stop = false;
 
   public static void main( String[] args ) throws Exception {
-    int shards = 256;
+    int shards = 1024;
     final Environment[] envs = new Environment[shards];
     final Store[] stores = new Store[shards]; final int[] e = new int[1];
     EnvironmentConfig config = new EnvironmentConfig();
@@ -227,11 +227,11 @@ public class StressTest6 {
     while(count-->0) {
       Event evt = new Event(UUID.randomUUID(), count);
       evts.offer(evt);
-      if(evts.size()>1000000)
-        break;
+      if(evts.size()%10000000 == 0)
+        log.info("produced {} ", evts.size());
     }
 
-    int cw = 8; int rw = 4;
+    int cw = 20; int rw = 4;
     Thread[] workers = new Thread[cw+rw];
     for(int i = 0; i< cw; i++) {
       workers[i] = new Thread(new WriteTask(envs, stores));
@@ -243,7 +243,7 @@ public class StressTest6 {
       workers[i].start();
     }
 
-    int n = 10;
+    /*int n = 10;
     Thread[] producers = new Thread[n];
     for(int i = 0; i < n; i++) {
       producers[i] = new Thread(new Producer(count/n));
@@ -252,12 +252,12 @@ public class StressTest6 {
 
     for(int i=0; i< n; i++) {
       producers[i].join();
-    }
+      }*/
 
     while(true) {
       if (evts.size() <= 0)
         break;
-      try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
+      try {Thread.currentThread().sleep(5000);} catch(Exception ex) {}
       log.info("evts left to be processed {}", evts.size());
     }
 
