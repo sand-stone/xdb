@@ -133,6 +133,7 @@ public class StressTest8 {
     private Environment getEnv() {
       EnvironmentConfig config = new EnvironmentConfig();
       config.setGcUseExclusiveTransaction(false);
+      config.setTreeMaxPageSize(512);
       /*config.setGcTransactionAcquireTimeout(10);
       config.setGcMinUtilization(10);
       config.setGcStartIn(300);
@@ -158,7 +159,7 @@ public class StressTest8 {
       while(!stop) {
         if(count<=0)
           break;
-        if(count%2000000 == 0) {
+        if(count%1000000 == 0) {
           if(env != null)
             env.close();
           log.info("thread {} switch to a new shard", p);
