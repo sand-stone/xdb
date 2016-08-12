@@ -156,7 +156,7 @@ public class StressTest8 {
       while(!stop) {
         if(count<=0)
           break;
-        if(count%5000000 == 0) {
+        if(count%1000000 == 0) {
           if(env != null)
             env.close();
           log.info("thread {} switch to a new shard", p);
