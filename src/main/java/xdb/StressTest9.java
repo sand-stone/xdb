@@ -78,13 +78,17 @@ public class StressTest9 {
   public static void main( String[] args ) throws Exception {
     EnvironmentConfig config = new EnvironmentConfig();
     config.setGcUseExclusiveTransaction(false);
-    /*config.setGcTransactionAcquireTimeout(10);
-    config.setGcMinUtilization(10);
+    config.setTreeMaxPageSize(960);
+    config.setGcTransactionAcquireTimeout(10);
+    config.setGcMinUtilization(60);
     config.setGcStartIn(300);
-    config.setGcRunPeriod(2000);
-    config.setTreeMaxPageSize(512);
-    config.setGcFileMinAge(1000);
-    config.setGcTransactionAcquireTimeout(1000);*/
+    config.setGcRunPeriod(1000);
+    config.setGcFileMinAge(10000);
+    config.setGcTransactionAcquireTimeout(100);
+    config.setManagementEnabled(false);
+    config.setEnvGatherStatistics(false);
+    config.setEnvCloseForcedly(true);
+
     final Environment env = Environments.newInstance("guids", config);
     final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
         @Override
@@ -93,7 +97,7 @@ public class StressTest9 {
           //return env.openStore("stressdb", WITHOUT_DUPLICATES, txn);
         }
       });
-
+    env.suspendGC();
     int count = 9000; final int batch = 1000;
     final Event[] evts = new Event[batch];
     for(int i = 0; i < count; i++) {
@@ -102,7 +106,7 @@ public class StressTest9 {
         evts[j] = new Event(g.getLeastSignificantBits(), g.getMostSignificantBits(), j);
       }
       try {
-        env.suspendGC();
+        //env.suspendGC();
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
@@ -112,12 +116,12 @@ public class StressTest9 {
             }
           });
       } finally {
-        env.resumeGC();
+        //env.resumeGC();
       }
       if(i%100 == 0) {
         log.info("count {}", i);
       }
-      
+
       if(i%1000 == 0) {
         log.info("starting gc");
         env.gc();

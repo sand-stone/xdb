@@ -139,6 +139,9 @@ public class StressTest8 {
       config.setGcRunPeriod(2000);
       config.setGcFileMinAge(1000);
       config.setGcTransactionAcquireTimeout(1000);
+      config.setManagementEnabled(false);
+      config.setEnvGatherStatistics(false);
+      config.setEnvCloseForcedly(true);
       Environment env = Environments.newInstance("guids#"+p+"#"+pn++, config);
       env.suspendGC();
       return env;
