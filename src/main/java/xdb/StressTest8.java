@@ -153,8 +153,8 @@ public class StressTest8 {
     }
 
     public void run() {
-      Environment env = null;
-      Store store =  null;
+      Environment env = getEnv();
+      Store store = getStore(env);
       while(!stop) {
         if(count<=0)
           break;
