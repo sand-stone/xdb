@@ -77,23 +77,14 @@ public class StressTest9 {
 
   public static void main( String[] args ) throws Exception {
     EnvironmentConfig config = new EnvironmentConfig();
-    config.setGcRunPeriod(1000);
     config.setGcUseExclusiveTransaction(false);
-    config.setGcTransactionAcquireTimeout(100);
-    //config.setLogFileSize(512);
-    //config.setGcStartIn(300);
-    config.setGcRunPeriod(300);
-    //config.setManagementEnabled(false);
-    //config.setEnvGatherStatistics(false);
+    config.setGcTransactionAcquireTimeout(10);
+    config.setGcMinUtilization(50);
+    config.setGcStartIn(300);
+    config.setGcRunPeriod(2000);
     config.setTreeMaxPageSize(512);
     config.setGcFileMinAge(1000);
-    config.setGcTransactionAcquireTimeout(100);
-    /*config.setLogDurableWrite(true);
-      config.setLogFileSize(81920);
-      config.setGcMinUtilization(80);
-      config.setGcStartIn(10000);
-      config.setTreeMaxPageSize(512);
-      config.setTreeNodesCacheSize(8192);*/
+    config.setGcTransactionAcquireTimeout(1000);
     final Environment env = Environments.newInstance("guids", config);
     final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
         @Override
@@ -103,7 +94,7 @@ public class StressTest9 {
         }
       });
 
-    int count = 50000; final int batch = 1000;
+    int count = 9000; final int batch = 1000;
     final Event[] evts = new Event[batch];
     for(int i = 0; i < count; i++) {
       for (int j = 0; j < batch; j++) {
@@ -138,6 +129,7 @@ public class StressTest9 {
       StatisticsItem item = env.getStatistics().getStatisticsItem(name);
       log.info("{}={}",name, item.getTotal());
     }
+
     env.close();
   }
 
