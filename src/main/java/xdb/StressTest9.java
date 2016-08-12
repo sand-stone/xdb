@@ -35,15 +35,16 @@ public class StressTest9 {
 
     public static ByteIterable get(long p1, long p2) {
       final LightOutputStream output = new LightOutputStream();
-      LongBinding.writeCompressed(output, p1);
-      LongBinding.writeCompressed(output, p2);
+      output.writeUnsignedLong(p1);
+      output.writeUnsignedLong(p2);
       return output.asArrayByteIterable();
     }
 
     public static Event getEvent(ByteIterable kbytes, ByteIterable vbytes) {
       final ByteIterator iterator = kbytes.iterator();
-      long p1 = LongBinding.readCompressed(iterator);
-      long p2 = LongBinding.readCompressed(iterator);
+      long p1 = LongBinding.entryToUnsignedLong(iterator, 8);
+      iterator.skip(8);
+      long p2 = LongBinding.entryToUnsignedLong(iterator, 8);
       long v = entryToLong(vbytes);
       return new Event(p1, p2, Double.longBitsToDouble(v));
     }
@@ -97,8 +98,8 @@ public class StressTest9 {
     final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
         @Override
         public Store compute(@NotNull final Transaction txn) {
-          //return env.openStore("stressdb", WITHOUT_DUPLICATES_WITH_PREFIXING, txn);
-          return env.openStore("stressdb", WITHOUT_DUPLICATES, txn);
+          return env.openStore("stressdb", WITHOUT_DUPLICATES_WITH_PREFIXING, txn);
+          //return env.openStore("stressdb", WITHOUT_DUPLICATES, txn);
         }
       });
 
