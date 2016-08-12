@@ -133,13 +133,13 @@ public class StressTest8 {
     private Environment getEnv() {
       EnvironmentConfig config = new EnvironmentConfig();
       config.setGcUseExclusiveTransaction(false);
-      config.setGcTransactionAcquireTimeout(10);
+      /*config.setGcTransactionAcquireTimeout(10);
       config.setGcMinUtilization(10);
       config.setGcStartIn(300);
       config.setGcRunPeriod(2000);
       config.setTreeMaxPageSize(512);
       config.setGcFileMinAge(1000);
-      config.setGcTransactionAcquireTimeout(1000);
+      config.setGcTransactionAcquireTimeout(1000);*/
       return Environments.newInstance("guids#"+p+"#"+pn++, config);
     }
 

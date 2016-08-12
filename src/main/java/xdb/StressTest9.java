@@ -78,13 +78,13 @@ public class StressTest9 {
   public static void main( String[] args ) throws Exception {
     EnvironmentConfig config = new EnvironmentConfig();
     config.setGcUseExclusiveTransaction(false);
-    config.setGcTransactionAcquireTimeout(10);
-    config.setGcMinUtilization(50);
+    /*config.setGcTransactionAcquireTimeout(10);
+    config.setGcMinUtilization(10);
     config.setGcStartIn(300);
     config.setGcRunPeriod(2000);
     config.setTreeMaxPageSize(512);
     config.setGcFileMinAge(1000);
-    config.setGcTransactionAcquireTimeout(1000);
+    config.setGcTransactionAcquireTimeout(1000);*/
     final Environment env = Environments.newInstance("guids", config);
     final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
         @Override
