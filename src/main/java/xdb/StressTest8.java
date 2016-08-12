@@ -151,19 +151,20 @@ public class StressTest8 {
           }
         });
     }
-    
+
     public void run() {
       Environment env = null;
       Store store =  null;
       while(!stop) {
         if(count<=0)
           break;
-        if(count%10000000 == 0) {
+        if(count%5000000 == 0) {
           if(env != null)
             env.close();
+          log.info("thread {} switch to a new shard", p);
           env = getEnv();
           store = getStore(env);
-        }          
+        }
         write(env, store);
         counter.addAndGet(batch);
         count -= batch;
