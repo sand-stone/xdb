@@ -97,19 +97,25 @@ public class StressTest8 {
     int pn = 0;
 
     private void write(Environment env, Store store) {
+      env.gc();
       for (int i = 0; i < batch; i++) {
         UUID g = UUID.randomUUID();
         evts[i] = new Event(g.getLeastSignificantBits(), g.getMostSignificantBits(), i);
       }
       long t1 = System.nanoTime();
-      env.executeInTransaction(new TransactionalExecutable() {
-          @Override
-          public void execute(@NotNull final Transaction txn) {
-            for (int i = 0; i < batch; i++) {
-              store.add(txn, evts[i].getKey(), evts[i].getValue());
+      try {
+        env.suspendGC();
+        env.executeInTransaction(new TransactionalExecutable() {
+            @Override
+            public void execute(@NotNull final Transaction txn) {
+              for (int i = 0; i < batch; i++) {
+                store.add(txn, evts[i].getKey(), evts[i].getValue());
+              }
             }
-          }
-        });
+          });
+      } finally {
+        env.resumeGC();
+      }
       long t2 = System.nanoTime();
       double d = (t2-t1)/1e9;
       sum += d;
@@ -125,21 +131,13 @@ public class StressTest8 {
 
     private Environment getEnv() {
       EnvironmentConfig config = new EnvironmentConfig();
-      config.setGcStartIn(300);
       config.setGcRunPeriod(1000);
       config.setGcUseExclusiveTransaction(false);
       config.setGcTransactionAcquireTimeout(100);
       config.setGcRunPeriod(300);
-      config.setLogFileSize(512);
-      config.setGcStartIn(300);
-      config.setGcRunPeriod(30000);
-      config.setGcUseExclusiveTransaction(false);
-      config.setManagementEnabled(false);
-      config.setEnvGatherStatistics(false);
       config.setTreeMaxPageSize(512);
       config.setGcFileMinAge(1000);
       config.setGcTransactionAcquireTimeout(100);
-      config.setLogFileSize(1024);
       return Environments.newInstance("guids#"+p+"#"+pn++, config);
     }
 
