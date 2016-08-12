@@ -98,7 +98,6 @@ public class StressTest8 {
     int pn = 0;
 
     private void write(Environment env, Store store) {
-      env.gc();
       for (int i = 0; i < batch; i++) {
         UUID g = UUID.randomUUID();
         evts[i] = new Event(g.getLeastSignificantBits(), g.getMostSignificantBits(), i);
