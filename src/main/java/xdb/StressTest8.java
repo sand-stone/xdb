@@ -92,7 +92,7 @@ public class StressTest8 {
       this.p = p;
     }
 
-    final int batch = 1000;
+    final int batch = 5000;
     final Event[] evts = new Event[batch];
     int pn = 0;
 
@@ -158,7 +158,7 @@ public class StressTest8 {
       while(!stop) {
         if(count<=0)
           break;
-        if(count%1000000 == 0) {
+        if(count%5000000 == 0) {
           if(env != null)
             env.close();
           log.info("thread {} switch to a new shard", p);
