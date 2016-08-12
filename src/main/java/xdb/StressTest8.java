@@ -104,7 +104,7 @@ public class StressTest8 {
       }
       long t1 = System.nanoTime();
       try {
-        env.suspendGC();
+        //env.suspendGC();
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
@@ -114,7 +114,7 @@ public class StressTest8 {
             }
           });
       } finally {
-        env.resumeGC();
+        //env.resumeGC();
       }
       long t2 = System.nanoTime();
       double d = (t2-t1)/1e9;
@@ -131,16 +131,17 @@ public class StressTest8 {
 
     private Environment getEnv() {
       EnvironmentConfig config = new EnvironmentConfig();
+      config.setTreeMaxPageSize(960);
       config.setGcUseExclusiveTransaction(false);
-      config.setTreeMaxPageSize(512);
-      /*config.setGcTransactionAcquireTimeout(10);
-      config.setGcMinUtilization(10);
+      config.setGcTransactionAcquireTimeout(10);
+      config.setGcMinUtilization(20);
       config.setGcStartIn(300);
       config.setGcRunPeriod(2000);
-      config.setTreeMaxPageSize(512);
       config.setGcFileMinAge(1000);
-      config.setGcTransactionAcquireTimeout(1000);*/
-      return Environments.newInstance("guids#"+p+"#"+pn++, config);
+      config.setGcTransactionAcquireTimeout(1000);
+      Environment env = Environments.newInstance("guids#"+p+"#"+pn++, config);
+      env.suspendGC();
+      return env;
     }
 
     private Store getStore(Environment env) {
