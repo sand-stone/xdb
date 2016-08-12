@@ -193,6 +193,16 @@ public class StressTest7 {
     config.setGcTransactionAcquireTimeout(100);
     config.setGcRunPeriod(300);
     config.setLogFileSize(512);
+    config.setGcStartIn(300);
+    config.setGcRunPeriod(30000);
+     config.setGcUseExclusiveTransaction(false);
+    config.setManagementEnabled(false);
+    config.setEnvGatherStatistics(false);
+    config.setTreeMaxPageSize(512);
+    config.setGcFileMinAge(1000);
+    config.setGcTransactionAcquireTimeout(100);
+    config.setLogFileSize(1024);
+
     /*config.setLogDurableWrite(true);
       config.setLogFileSize(81920);
       config.setGcMinUtilization(80);
