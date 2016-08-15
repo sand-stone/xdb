@@ -88,6 +88,7 @@ public class StressTest9 {
     config.setManagementEnabled(false);
     config.setEnvGatherStatistics(false);
     config.setEnvCloseForcedly(true);
+    config.setLogCacheOpenFilesCount(1000);
 
     final Environment env = Environments.newInstance("guids", config);
     final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
