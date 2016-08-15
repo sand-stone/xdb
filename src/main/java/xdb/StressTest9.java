@@ -88,9 +88,8 @@ public class StressTest9 {
     config.setManagementEnabled(false);
     config.setEnvGatherStatistics(false);
     config.setEnvCloseForcedly(true);
-    config.setLogCacheOpenFilesCount(10000);
-    config.setTreeNodesCacheSize(1024*1024*1024);
-    config.setTreeNodesCacheSize(1024*1024*1024);
+    config.setLogCacheOpenFilesCount(5000);
+    config.setTreeNodesCacheSize(1024*1024);
     config.setLogFileSize(81920);
     final Environment env = Environments.newInstance("guids", config);
     final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
