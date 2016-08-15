@@ -98,6 +98,7 @@ public class StressTest9 {
         }
       });
     env.suspendGC();
+    log.info("test start");
     int count = 9000; final int batch = 1000;
     final Event[] evts = new Event[batch];
     for(int i = 0; i < count; i++) {
@@ -124,10 +125,11 @@ public class StressTest9 {
 
       if(i%1000 == 0) {
         log.info("starting gc");
-        env.gc();
+        //env.gc();
         log.info("gc done");
       }
     }
+    log.info("test ends");
 
     for(String name :  env.getStatistics().getItemNames()) {
       StatisticsItem item = env.getStatistics().getStatisticsItem(name);
