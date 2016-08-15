@@ -120,7 +120,7 @@ public class StressTest9 {
         env.resumeGC();
       }
       if(i%100 == 0) {
-        log.info("remaininf count {}", count-i);
+        log.info("remaining count {}", count-i);
       }
 
       if(i%10000 == 0) {
