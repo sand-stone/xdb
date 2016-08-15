@@ -102,7 +102,7 @@ public class StressTest10 {
 
     //env.suspendGC();
     log.info("test start");
-    int count = 100000; final int batch = 1000;
+    int count = 1000000; final int batch = 1000;
     final Event[] evts = new Event[batch];
     for(int i = 0; i < count; i++) {
       for (int j = 0; j < batch; j++) {
