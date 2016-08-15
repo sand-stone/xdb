@@ -19,49 +19,19 @@
         </configuration>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <version>2.4.3</version>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>2.2</version>
         <configuration>
-          <artifactSet>
-            <includes>
-              <include>org.jetbrains.xodus:xodus-environment</include>
-              <include>org.jetbrains.xodus:xodus-util</include>
-              <include>org.jetbrains.xodus:xodus-entity-store</include>
-              <include>org.jetbrains.xodus:xodus-vfs</include>
-              <include>org.jetbrains.xodus:xodus-compress</include>
-              <include>org.apache.commons:commons-compress</include>
-              <include>org.tukaani:xz</include>
-              <include>org.jetbrains.xodus:xodus-utils</include>
-              <include>org.jetbrains:annotations</include>
-              <include>org.jetbrains.xodus:xodus-openAPI</include>
-              <include>io.netty:netty-all</include>
-              <include>org.apache.logging.log4j:log4j-api</include>
-              <include>org.apache.logging.log4j:log4j-core</include>
-              <include>commons-net:commons-net</include>
-              <include>org.apache.logging.log4j:log4j-core</include>
-              <include>org.apache.logging.log4j:log4j-api</include>
-              <include>org.slf4j:slf4j-api</include>
-              <include>org.slf4j:slf4j-simple</include>
-              <include>com.google.guava:guava</include>
-            </includes>
-          </artifactSet>
-          <filters>
-            <filter>
-              <artifact>*:*</artifact>
-              <excludes>
-                <exclude>META-INF/*.SF</exclude>
-                <exclude>META-INF/*.DSA</exclude>
-                <exclude>META-INF/*.RSA</exclude>
-              </excludes>
-            </filter>
-          </filters>
+          <descriptorRefs>
+            <descriptorRef>jar-with-dependencies</descriptorRef>
+          </descriptorRefs>
         </configuration>
         <executions>
           <execution>
+            <id>make-assembly</id>
             <phase>package</phase>
             <goals>
-              <goal>shade</goal>
+              <goal>single</goal>
             </goals>
           </execution>
         </executions>
