@@ -100,6 +100,7 @@ public class StressTest9 {
           //return env.openStore("stressdb", WITHOUT_DUPLICATES, txn);
         }
       });
+
     //env.suspendGC();
     log.info("test start");
     int count = 100000; final int batch = 1000;
@@ -124,12 +125,6 @@ public class StressTest9 {
       }
       if(i%100 == 0) {
         log.info("remaining count {}", count-i);
-      }
-
-      if(i%10000 == 0) {
-        log.info("starting gc");
-        env.gc();
-        log.info("gc done");
       }
     }
     log.info("test ends");
