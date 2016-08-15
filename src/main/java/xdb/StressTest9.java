@@ -97,9 +97,9 @@ public class StressTest9 {
           //return env.openStore("stressdb", WITHOUT_DUPLICATES, txn);
         }
       });
-    env.suspendGC();
+    //env.suspendGC();
     log.info("test start");
-    int count = 9000; final int batch = 1000;
+    int count = 10000; final int batch = 1000;
     final Event[] evts = new Event[batch];
     for(int i = 0; i < count; i++) {
       for (int j = 0; j < batch; j++) {
@@ -107,7 +107,7 @@ public class StressTest9 {
         evts[j] = new Event(g.getLeastSignificantBits(), g.getMostSignificantBits(), j);
       }
       try {
-        //env.suspendGC();
+        env.suspendGC();
         env.executeInTransaction(new TransactionalExecutable() {
             @Override
             public void execute(@NotNull final Transaction txn) {
@@ -117,7 +117,7 @@ public class StressTest9 {
             }
           });
       } finally {
-        //env.resumeGC();
+        env.resumeGC();
       }
       if(i%100 == 0) {
         log.info("count {}", i);
@@ -125,7 +125,7 @@ public class StressTest9 {
 
       if(i%1000 == 0) {
         log.info("starting gc");
-        //env.gc();
+        env.gc();
         log.info("gc done");
       }
     }
