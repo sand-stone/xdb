@@ -99,7 +99,7 @@ public class StressTest9 {
       });
     //env.suspendGC();
     log.info("test start");
-    int count = 10000; final int batch = 1000;
+    int count = 100000; final int batch = 1000;
     final Event[] evts = new Event[batch];
     for(int i = 0; i < count; i++) {
       for (int j = 0; j < batch; j++) {
@@ -120,10 +120,10 @@ public class StressTest9 {
         env.resumeGC();
       }
       if(i%100 == 0) {
-        log.info("count {}", i);
+        log.info("remaininf count {}", count-i);
       }
 
-      if(i%1000 == 0) {
+      if(i%10000 == 0) {
         log.info("starting gc");
         env.gc();
         log.info("gc done");
