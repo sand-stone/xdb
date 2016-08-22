@@ -1,5 +1,5 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>xdb</groupId>
   <artifactId>xdb</artifactId>
@@ -19,19 +19,112 @@
         </configuration>
       </plugin>
       <plugin>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>2.2</version>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>2.4.3</version>
         <configuration>
-          <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
+          <artifactSet>
+            <includes>
+              <include>org.jetbrains.xodus:xodus-environment</include>
+              <include>org.jetbrains.xodus:xodus-util</include>
+              <include>org.jetbrains.xodus:xodus-entity-store</include>
+              <include>org.jetbrains.xodus:xodus-vfs</include>
+              <include>org.jetbrains.xodus:xodus-compress</include>
+              <include>org.jetbrains.xodus:xodus-utils</include>
+              <include>org.jetbrains:annotations</include>
+              <include>org.jetbrains.xodus:xodus-openAPI</include>
+              <include>wiredtiger:wiredtiger</include>
+              <include>org.apache.calcite:calcite-core</include>
+              <include>org.apache.calcite:calcite-linq4j</include>
+              <include>org.apache.calcite.avatica:avatica</include>
+              <include>com.google.collections:google-collections</include>
+              <include>net.hydromatic:eigenbase-properties</include>
+              <include>org.codehaus.janino:janino</include>
+              <include>org.codehaus.janino:commons-compiler</include>
+              <include>org.pentaho:pentaho-aggdesigner-algorithm</include>
+              <include>com.google.guava:guava</include>
+              <include>org.apache.commons:commons-compress</include>
+              <include>com.google.code.gson:gson</include>
+              <include>org.tukaani:xz</include>
+              <include>com.sparkjava:spark-core</include>
+              <include>org.slf4j:slf4j-api</include>
+              <include>org.slf4j:slf4j-simple</include>
+              <include>org.eclipse.jetty:jetty-server</include>
+              <include>javax.servlet:javax.servlet-api</include>
+              <include>org.eclipse.jetty:jetty-http</include>
+              <include>org.eclipse.jetty:jetty-util</include>
+              <include>org.eclipse.jetty:jetty-io</include>
+              <include>org.eclipse.jetty:jetty-webapp</include>
+              <include>org.eclipse.jetty.websocket:websocket-client</include>
+              <include>org.eclipse.jetty.websocket:websocket-common</include>
+              <include>org.eclipse.jetty.websocket:websocket-servlet</include>
+              <include>org.eclipse.jetty.websocket:websocket-api</include>
+              <include>org.eclipse.jetty:jetty-xml</include>
+              <include>org.eclipse.jetty:jetty-servlet</include>
+              <include>org.eclipse.jetty:jetty-security</include>
+              <include>org.eclipse.jetty.websocket:websocket-server</include>
+              <include>org.eclipse.jetty.websocket:websocket-common</include>
+              <include>org.eclipse.jetty.websocket:websocket-client:jar</include>
+              <include>commons-fileupload:commons-fileupload</include>
+              <include>commons-io:commons-io</include>
+              <include>org.apache.logging.log4j:log4j-api</include>
+              <include>org.apache.logging.log4j:log4j-core</include>
+              <include>commons-net:commons-net</include>
+              <include>org.apache.commons:commons-lang3</include>
+              <include>javax.validation:validation-api</include>
+              <include>mysql:mysql-connector-java</include>
+              <include>org.codehaus.jackson:jackson-mapper-asl</include>
+              <include>org.codehaus.jackson:jackson-core-asl</include>
+              <include>jline:jline</include>
+              <include>com.googlecode.json-simple:json-simple</include>
+              <include>commons-cli:commons-cli</include>
+              <include>javax.ws.rs:javax.ws.rs-api</include>
+              <include>com.google.protobuf:protobuf-java</include>
+              <include>commons-cli:commons-cli</include>
+              <include>au.com.bytecode:opencsv</include>
+              <include>org.apache.velocity:velocity</include>
+              <include>com.oracle:ojdbc6</include>
+              <include>org.drizzle.jdbc:drizzle-jdbc</include>
+              <include>org.apache.logging.log4j:log4j-core</include>
+              <include>org.apache.logging.log4j:log4j-api</include>
+              <include>log4j:log4j</include>
+              <include>org.apache.commons:commons-configuration2</include>
+              <include>commons-logging:commons-logging</include>
+              <include>commons-beanutils:commons-beanutils</include>
+              <include>org.asynchttpclient:async-http-client</include>
+              <include>io.netty:netty-codec-http</include>
+              <include>io.netty:netty-codec</include>
+              <include>io.netty:netty-handler</include>
+              <include>io.netty:netty-transport-native-epoll</include>
+              <include>io.netty:netty-common</include>
+              <include>io.netty:netty-buffer</include>
+              <include>io.netty:netty-transport</include>
+              <include>org.asynchttpclient:netty-resolver-dns</include>
+              <include>org.asynchttpclient:netty-resolver</include>
+              <include>org.asynchttpclient:netty-codec-dns</include>
+              <include>org.asynchttpclient:netty-resolver</include>
+              <include>org.asynchttpclient:netty-codec-dns</include>
+              <include>org.reactivestreams:reactive-streams</include>
+              <include>com.typesafe.netty:netty-reactive-streams</include>
+              <include>org.javassist:javassist</include>
+            </includes>
+          </artifactSet>
+          <filters>
+            <filter>
+              <artifact>*:*</artifact>
+              <excludes>
+                <exclude>META-INF/*.SF</exclude>
+                <exclude>META-INF/*.DSA</exclude>
+                <exclude>META-INF/*.RSA</exclude>
+              </excludes>
+            </filter>
+          </filters>
         </configuration>
         <executions>
           <execution>
-            <id>make-assembly</id>
             <phase>package</phase>
             <goals>
-              <goal>single</goal>
+              <goal>shade</goal>
             </goals>
           </execution>
         </executions>
@@ -89,6 +182,27 @@
       <artifactId>wiredtiger</artifactId>
       <version>2.8.1</version>
     </dependency>
+    <dependency>
+      <groupId>org.apache.calcite</groupId>
+      <artifactId>calcite-linq4j</artifactId>
+      <version>1.8.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.calcite</groupId>
+      <artifactId>calcite-core</artifactId>
+      <version>1.8.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.calcite.avatica</groupId>
+      <artifactId>avatica</artifactId>
+      <version>1.8.0</version>
+    </dependency>
+    <dependency>
+    <groupId>com.google.collections</groupId>
+    <artifactId>google-collections</artifactId>
+    <version>1.0</version>
+</dependency>
+
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
