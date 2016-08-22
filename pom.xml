@@ -37,7 +37,6 @@
               <include>org.apache.calcite:calcite-core</include>
               <include>org.apache.calcite:calcite-linq4j</include>
               <include>org.apache.calcite.avatica:avatica</include>
-              <include>com.google.collections:google-collections</include>
               <include>net.hydromatic:eigenbase-properties</include>
               <include>org.codehaus.janino:janino</include>
               <include>org.codehaus.janino:commons-compiler</include>

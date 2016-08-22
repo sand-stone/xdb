@@ -32,7 +32,7 @@ public class CalciteSample {
     public static Schema getInstance() {
       LOGGER.info("Creating schema...");
       DataFactory dataFactory = new DataFactory(0);
-      int numberOfPersons = 100;//10000000;
+      int numberOfPersons = 10000000;
       Schema schema = new Schema();
       schema.persons = new Person[numberOfPersons];
       schema.addresses = new Address[numberOfPersons];
@@ -118,8 +118,8 @@ public class CalciteSample {
   }
 
   private static String createQuery(DataFactory dataFactory) {
-    //return "select count(*) from persons p inner join addresses a on a.personId = p.id where a.city = '" + dataFactory.getNextCity() + "' and p.lastName = '" + dataFactory.getNextLastName() + "'";
-    return "select count(*) from persons p where p.lastName = '" + dataFactory.getNextLastName() + "'";
+    return "select count(*) from persons p inner join addresses a on a.personId = p.id where a.city = '" + dataFactory.getNextCity() + "' and p.lastName = '" + dataFactory.getNextLastName() + "'";
+    //return "select count(*) from persons p where p.lastName = '" + dataFactory.getNextLastName() + "'";
     //return "select count(*) from persons";
   }
   
@@ -131,24 +131,22 @@ public class CalciteSample {
       try (final Connection connection = DriverManager.getConnection("jdbc:calcite:model=./model/model.json", info)) {
         DataFactory dataFactory = new DataFactory(0);
         try (Statement statement = connection.createStatement()) {
-          for (int i = 0; i < 100; i++) {
-            String query = createQuery(dataFactory);
-            LOGGER.info("[" + 0 + "] Executing query " + query + " rows.");
-            long startMillis = System.currentTimeMillis();
-            try (ResultSet resultSet = statement.executeQuery(query)) {
-              LOGGER.info("rset{}", resultSet);
-              int count = 0;
-              while (resultSet.next()) {
-                count = resultSet.getInt(1);
-              }
-              long executionTime = System.currentTimeMillis() - startMillis;
-              LOGGER.info("[" + 0 + "] Result has " + count + " rows: " + executionTime);
-            } catch (Exception e) {
-              e.printStackTrace();
-              LOGGER.info("Query failed: " + e.getMessage(), e);
+          String query = createQuery(dataFactory);
+          LOGGER.info("[" + 0 + "] Executing query " + query + " rows.");
+          long startMillis = System.currentTimeMillis();
+          try (ResultSet resultSet = statement.executeQuery(query)) {
+            LOGGER.info("rset{}", resultSet);
+            int count = 0;
+            while (resultSet.next()) {
+              count = resultSet.getInt(1);
             }
-            LOGGER.info("done query");
+            long executionTime = System.currentTimeMillis() - startMillis;
+            LOGGER.info("[" + 0 + "] Result has " + count + " rows: " + executionTime);
+          } catch (Exception e) {
+            e.printStackTrace();
+            LOGGER.info("Query failed: " + e.getMessage(), e);
           }
+          LOGGER.info("done query");
         } catch (Exception e) {
           LOGGER.info("Query failed: " + e.getMessage(), e);
         }
