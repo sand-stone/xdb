@@ -166,25 +166,21 @@ public class TimeSeriesDB {
     }
 
     public void run() {
-      int interval = 1;
+      int interval = 3;
       while(!stop) {
         try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
         Cursor c = session.open_cursor(table, null, null);
         int nd = 0;
+        int batch = 10000;
         session.snapshot("name=past1second");
         session.begin_transaction(tnx);
-        long past = past(interval);
+        long past = past(10);
         c.putKeyLong(past);
         SearchStatus status = c.search_near();
         switch(status) {
         case LARGER:
-        case NOTFOUND:
-          log.info("no data points to remove");
-          break;
-        case FOUND:
-        case SMALLER:
+          log.info("data points large");
           log.info("TTL scanning starts");
-          int batch = 10000;
           do {
             nd++;
             Cursor uc = null;
@@ -204,12 +200,39 @@ public class TimeSeriesDB {
             }
           } while(c.prev() == 0);
           log.info("TTL scanning ends");
+          log.info("TTL scanning deletes {} events", nd);
+          break;
+        case NOTFOUND:
+          log.info("no data points to remove");
+          break;
+        case FOUND:
+        case SMALLER:
+          log.info("TTL scanning starts");
+          do {
+            nd++;
+            Cursor uc = null;
+            try {
+              uc = session.open_cursor(null, c, null);
+              uc.putKeyLong(c.getKeyLong());
+              uc.putKeyString(c.getKeyString());
+              uc.putKeyString(c.getKeyString());
+              uc.remove();
+              if(batch--<=0)
+                break;
+            } catch(WiredTigerRollbackException e) {
+              session.rollback_transaction(tnx);
+              log.info("e ={}", e);
+            } finally {
+              uc.close();
+            }
+          } while(c.next() == 0);
+          log.info("TTL scanning ends");
+          log.info("TTL scanning deletes {} events", nd);
           break;
         }
         session.commit_transaction(null);
         session.snapshot("drop=(all)");
         c.close();
-        log.info("TTL scanning deletes {} events", nd);
       }
     }
 
