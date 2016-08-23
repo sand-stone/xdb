@@ -51,6 +51,25 @@ public class SimpleDBTiger {
     c.putValueByteArray(ByteBuffer.allocate(8).putLong(12345).array())
       .putValueByteArray(ByteBuffer.allocate(8).putLong(54321).array());
     c.insert();
+
+    c.putKeyLong(54321)
+      .putKeyString("acmetable2")
+      .putKeyString("acmeDB2")
+      .putKeyLong(7654321)
+      .putKeyLong(12345678);
+    c.putValueByteArray(ByteBuffer.allocate(8).putLong(12345).array())
+      .putValueByteArray(ByteBuffer.allocate(8).putLong(54321).array());
+    c.insert();
+
+    c.putKeyLong(12345)
+      .putKeyString("acmetable2")
+      .putKeyString("acmeDB2")
+      .putKeyLong(7654321)
+      .putKeyLong(12345678);
+    c.putValueByteArray(ByteBuffer.allocate(8).putLong(12345).array())
+      .putValueByteArray(ByteBuffer.allocate(8).putLong(54321).array());
+    c.insert();
+
     session.commit_transaction(null);
     conn.close(null);
   }
@@ -74,12 +93,40 @@ public class SimpleDBTiger {
     conn.close(null);
   }
 
+  public static void search() {
+    log.info("search");
+    Connection conn =  wiredtiger.open(db, "create");
+    Session session = conn.open_session(null);
+    session.create("table:acme", "type=lsm,key_format=qSSqq,value_format=uu");
+    Cursor c = session.open_cursor("table:acme", null, null);
+    c.putKeyLong(12345);
+      /*.putKeyString("acmetable")
+      .putKeyString("acmeDB")
+      .putKeyLong(7654321)
+      .putKeyLong(12345678);*/
+    SearchStatus ret = c.search_near();
+    log.info("ret={}",ret);
+    if(ret!=SearchStatus.NOTFOUND) {
+      do {
+        log.info("k1={}", c.getKeyLong());
+        log.info("k2={}", c.getKeyString());
+        log.info("k3={}", c.getKeyString());
+        log.info("k4={}", c.getKeyLong());
+        log.info("k5={}", c.getKeyLong());
+        log.info("v1={}", ByteBuffer.wrap(c.getValueByteArray()).getLong());
+        log.info("v2={}", ByteBuffer.wrap(c.getValueByteArray()).getLong());
+      } while(c.next()==0);
+    }
+    conn.close(null);
+  }
+
   private static String db = "./simpledb";
 
   public static void main( String[] args ) throws Exception {
     checkDir(db);
     write();
     read();
+    search();
   }
 
 }
