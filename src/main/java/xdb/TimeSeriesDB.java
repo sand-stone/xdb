@@ -171,7 +171,7 @@ public class TimeSeriesDB {
         try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
         Cursor c = session.open_cursor(table, null, null);
         int nd = 0;
-        //session.snapshot(table);
+        session.snapshot("name=past1second");
         session.begin_transaction(tnx);
         long past = past(interval);
         c.putKeyLong(past);
@@ -207,6 +207,7 @@ public class TimeSeriesDB {
           break;
         }
         session.commit_transaction(null);
+        session.snapshot("drop=(all)");
         c.close();
         log.info("TTL scanning deletes {} events", nd);
       }
@@ -245,6 +246,7 @@ public class TimeSeriesDB {
       int ret;
       while(!stop) {
         try {Thread.currentThread().sleep(2000);} catch(Exception ex) {}
+        session.snapshot("name=past");
         Cursor c = session.open_cursor(table, null, null);
         long ts = past(10);
         c.putKeyLong(ts);
@@ -268,6 +270,7 @@ public class TimeSeriesDB {
           break;
         }
         c.close();
+        session.snapshot("drop=(all)");
       }
     }
 
