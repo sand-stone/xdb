@@ -15,14 +15,14 @@ public class TimeSeriesDB2 {
   private static Logger log = LoggerFactory.getLogger(TimeSeriesDB2.class);
 
   public static class Tuple2<T1 extends Comparable, T2 extends Comparable> implements Comparable<Tuple2> {
- 
+
     public final T1 v1;
     public final T2 v2;
-    
+
     public T1 v1() {
       return v1;
     }
-    
+
     public T2 v2() {
       return v2;
     }
@@ -31,7 +31,7 @@ public class TimeSeriesDB2 {
       int c = v1.compareTo(t.v1);
       return c !=0 ? c : v2.compareTo(t.v2);
     }
-    
+
     public Tuple2(T1 v1, T2 v2) {
       this.v1 = v1;
       this.v2 = v2;
@@ -53,13 +53,13 @@ public class TimeSeriesDB2 {
       return v1.toString()+"#"+v2.toString();
     }
   }
- 
+
   public interface Tuple {
     static <T1 extends Comparable, T2 extends Comparable> Tuple2<T1, T2> tuple(T1 v1, T2 v2) {
       return new Tuple2<>(v1, v2);
     }
   }
-  
+
   public static class Event {
     public String host;
     public String metric;
@@ -165,52 +165,44 @@ public class TimeSeriesDB2 {
     }
 
     public void run() {
-      int interval = 1000;
+      int interval = 1;
       while(!stop) {
-        try {Thread.currentThread().sleep(interval);} catch(Exception ex) {}
+        try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
         log.info("TTL scanning starts {}", session);
-        Cursor c = session.open_cursor(ttlindex, null, null);
-        int ret = -1;
-        int nu = 0; int nd = 0;
+        Cursor c = session.open_cursor(table, null, null);
         log.info("TTL scanning starts");
-        while((ret = c.next()) == 0) {
-          Cursor uc = session.open_cursor(null, c, null);
-          int ttl = c.getValueInt();
-          byte[] val = c.getValueByteArray();
-          String host = uc.getKeyString();
-          String metric = c.getKeyString();
-          long ts = c.getKeyLong();
-          if(ttl-interval<=0) {
-            uc.putKeyString(host);
-            uc.putKeyString(metric);
-            uc.putKeyLong(ts);
-            //log.info("remove host {} metric {} ts {} {}", host, metric, ts, ttl);
-            int r = uc.remove();
+        int nd = 0;
+        session.begin_transaction(tnx);
+        long past = past(interval);
+        c.putKeyLong(past);
+        SearchStatus status = c.search_near();
+        switch(status) {
+        case LARGER:
+        case NOTFOUND:
+          log.info("no data points to remove");
+          break;
+        case FOUND:
+        case SMALLER:
+          do {
             nd++;
-            if(r!=0) {
-              throw new RuntimeException("fails to remove");
-            }
-            uc.close();
-            continue;
-          }
-          //log.info("update host {} metric {} ts {} {}==>{}", host, metric, ts, ttl, ttl-interval);
-          uc.putKeyString(host);
-          uc.putKeyString(metric);
-          uc.putKeyLong(ts);
-          uc.putValueInt(ttl-interval);
-          uc.putValueByteArray(val);
-          int r = uc.update();
-          if(r!=0) {
-            throw new RuntimeException("fails to update");
-          }
-          nu++;
-          uc.close();
+            Cursor uc = session.open_cursor(null, c, null);
+            uc.putKeyLong(c.getKeyLong());
+            uc.putKeyString(c.getKeyString());
+            uc.putKeyString(c.getKeyString());
+            uc.remove();
+          } while(c.prev() == 0);
+          break;
         }
+        session.commit_transaction(null);
         c.close();
-        log.info("TTL scanning ends nu {} nd {}", nu, nd);
+        log.info("TTL scanning ends nd {}", nd);
       }
     }
 
+  }
+
+  static long past(int seconds) {
+    return Instant.now().toEpochMilli() - seconds*1000;
   }
 
   public static class Analyst implements Runnable {
@@ -218,28 +210,6 @@ public class TimeSeriesDB2 {
 
     public Analyst(Session session) {
       this.session = session;
-    }
-
-    private long past(int seconds) {
-      return Instant.now().toEpochMilli() - seconds*1000;
-    }
-
-    private void report2(List<Event> evts) {
-      log.info("reporting");
-      //report(evts.stream().collect(Collectors.groupingBy(Event::getHost)));
-      //log.info("{}", evts.stream().collect(Collectors.groupingBy(Event::getHost,
-      //                                                   Collectors.mapping(Event::getMetric, Collectors.toSet()))));
-      log.info("map = {}",
-               evts
-               .stream()
-               .collect((
-                         Collectors.groupingBy(
-                                               evt -> Tuple.tuple(evt.host, evt.metric),
-                                               Collectors.counting())))
-               .entrySet().stream()
-               .sorted(Comparator.comparing(Map.Entry::getKey))
-               .collect(Collectors.toList())
-               );
     }
 
     private void report(List<Event> evts) {
@@ -279,7 +249,6 @@ public class TimeSeriesDB2 {
           do {
             Event evt = new Event(c.getKeyLong(), c.getKeyString(), c.getKeyString());
             evts.add(evt);
-            //log.info("forward evt={}", evt);
           } while(c.next() == 0);
           report(evts);
           break;
@@ -318,8 +287,8 @@ public class TimeSeriesDB2 {
   public static void main( String[] args ) throws Exception {
     Session session = init();
     new Ingestor(session).run();
-    new Analyst(session).run();
-    //new TTLMonitor(session).run();
+    //new Analyst(session).run();
+    new TTLMonitor(session).run();
     conn.close(null);
   }
 
