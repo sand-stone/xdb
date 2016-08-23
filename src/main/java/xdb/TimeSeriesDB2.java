@@ -20,7 +20,7 @@ public class TimeSeriesDB2 {
     public final T2 v2;
     
     public T1 v1() {
-        return v1;
+      return v1;
     }
     
     public T2 v2() {
@@ -34,7 +34,7 @@ public class TimeSeriesDB2 {
     
     public Tuple2(T1 v1, T2 v2) {
       this.v1 = v1;
-        this.v2 = v2;
+      this.v2 = v2;
     }
 
     public int hashCode() {
@@ -243,7 +243,7 @@ public class TimeSeriesDB2 {
     }
 
     private void report(List<Event> evts) {
-      log.info("map = {}",
+      log.info("select count(*) from events group by host, metric = {}",
                evts
                .stream()
                .collect((
@@ -259,7 +259,7 @@ public class TimeSeriesDB2 {
     public void run() {
       int ret;
       while(!stop) {
-        try {Thread.currentThread().sleep(500);} catch(Exception ex) {}
+        try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
         log.info("Analyst starts");
         Cursor c = session.open_cursor(table, null, null);
         long ts = past(10);
