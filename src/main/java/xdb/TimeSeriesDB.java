@@ -14,46 +14,46 @@ public class TimeSeriesDB {
   private static Logger log = LoggerFactory.getLogger(TimeSeriesDB.class);
 
   public static class Event {
-    public String site;
+    public String host;
     public String metric;
     public long ts;
     public byte[] val;
 
-    public Event(String site, String metric, long ts, byte[] val) {
-      this.site = site;
+    public Event(String host, String metric, long ts, byte[] val) {
+      this.host = host;
       this.metric = metric;
       this.ts = ts;
       this.val = val;
     }
 
-    public Event(String site, String metric, long ts) {
-      this(site, metric, ts, null);
+    public Event(String host, String metric, long ts) {
+      this(host, metric, ts, null);
     }
 
     public String toString() {
-      return site +"#"+ metric + "#"+ts;
+      return host +"#"+ metric + "#"+ts;
     }
   }
 
   public static class EventFactory {
     private Random rnd;
     private String[] metrics;
-    private String[] sites;
+    private String[] hosts;
 
-    public EventFactory(int numsites, int nummetrics) {
-      sites = new String[numsites];
+    public EventFactory(int numhosts, int nummetrics) {
+      hosts = new String[numhosts];
       metrics = new String[nummetrics];
-      for(int i = 0; i < numsites; i++) {
-        sites[i] = "sites"+i;
+      for(int i = 0; i < numhosts; i++) {
+        hosts[i] = "hosts"+i;
       }
       for(int i = 0; i < nummetrics; i++) {
         metrics[i] = "metrics"+i;
       }
-      rnd = new Random(numsites+nummetrics);
+      rnd = new Random(numhosts+nummetrics);
     }
 
     public Event getNextEvent() {
-      return new Event(sites[rnd.nextInt(sites.length)], metrics[rnd.nextInt(metrics.length)], Instant.now().toEpochMilli(), new byte[64]);
+      return new Event(hosts[rnd.nextInt(hosts.length)], metrics[rnd.nextInt(metrics.length)], Instant.now().toEpochMilli(), new byte[64]);
     }
   }
 
@@ -81,13 +81,14 @@ public class TimeSeriesDB {
 
     public void run() {
       //EventFactory producer = new EventFactory(100000000, 1000);
-      EventFactory producer = new EventFactory(1000, 100);
+      EventFactory producer = new EventFactory(10, 100);
       Cursor c = session.open_cursor(table, null, null);
-      while(!stop) {
+      int count = 5;
+      while(count-->0) {
         session.begin_transaction(tnx);
         for(int i = 0; i < batch; i++) {
           Event evt = producer.getNextEvent();
-          c.putKeyString(evt.site);
+          c.putKeyString(evt.host);
           c.putKeyString(evt.metric);
           c.putKeyLong(evt.ts);
           c.putValueInt(ttl);
@@ -110,24 +111,44 @@ public class TimeSeriesDB {
     }
 
     public void run() {
+      int interval = 1000;
       while(!stop) {
+        try {Thread.currentThread().sleep(interval);} catch(Exception ex) {}
         Cursor c = session.open_cursor(table, null, null);
-        int ret = c.next();
-        if(ret<0) { c.close(); continue; }
-        int ttl = c.getValueInt();
-        byte[] val = c.getValueByteArray();
-        String site = c.getKeyString();
-        String metric = c.getKeyString();
-        long ts = c.getKeyLong();
-        c.putKeyString(site);
-        c.putKeyString(metric);
-        c.putKeyLong(ts);
-        c.putValueInt(ttl);
-        c.putValueByteArray(val);
-        c.update();
+        int ret = -1;
+        while((ret = c.next()) == 0) {
+          Cursor uc = session.open_cursor(null, c, null);
+          int ttl = c.getValueInt();
+          byte[] val = c.getValueByteArray();
+          String host = c.getKeyString();
+          String metric = c.getKeyString();
+          long ts = c.getKeyLong();
+          if(ttl-interval<=0) {
+            uc.putKeyString(host);
+            uc.putKeyString(metric);
+            uc.putKeyLong(ts);
+            log.info("remove host {} metric {} ts {} {}", host, metric, ts, ttl);
+            int r = uc.remove();
+            if(r!=0) {
+              throw new RuntimeException("fails to remove");
+            }
+            uc.close();
+            continue;
+          }
+          log.info("update host {} metric {} ts {} {}==>{}", host, metric, ts, ttl, ttl-interval);
+          uc.putKeyString(host);
+          uc.putKeyString(metric);
+          uc.putKeyLong(ts);
+          uc.putValueInt(ttl-interval);
+          uc.putValueByteArray(val);
+          int r = uc.update();
+          if(r!=0) {
+            throw new RuntimeException("fails to update");
+          }
+          uc.close();
+        }
         c.close();
       }
-
     }
 
   }
@@ -142,12 +163,18 @@ public class TimeSeriesDB {
 
 
     public void run() {
-      Cursor c = session.open_cursor(table, null, null);
       while(!stop) {
+        Cursor c = session.open_cursor(table, null, null);
         int ret = c.next();
-        if(ret<0) continue;
+        if(ret<0) {
+          log.info("nothing to read");
+          try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
+          c.close();
+          continue;
+        }
         Event evt = new Event(c.getKeyString(), c.getKeyString(), c.getKeyLong());
         log.info("evt={}", evt);
+        c.close();
       }
     }
 
@@ -156,7 +183,7 @@ public class TimeSeriesDB {
   private static boolean stop = false;
   private static final String db = "./tsdb";
   private static final String table = "table:metrics";
-  private static final String cols = "columns=(site,metric,ts,ttl,val)";
+  private static final String cols = "columns=(host,metric,ts,ttl,val)";
   private static final String storage = "type=lsm,key_format=SSq,value_format=iu";
   private static final String tnx = "isolation=snapshot";
   private static final int ttl = 3000;
@@ -167,9 +194,9 @@ public class TimeSeriesDB {
     checkDir(db);
     Connection conn =  wiredtiger.open(db, "create");
     new Thread(new Ingestor(conn)).start();
-    //new Thread(new Analyst(conn)).start();
+    new Thread(new Analyst(conn)).start();
     new Thread(new TTLMonitor(conn)).start();
-    int count = 1000000;
+    int count = 100;
     while(true) {
       int c1= counter.get();
       try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
@@ -178,9 +205,11 @@ public class TimeSeriesDB {
         break;
       log.info("evts processed {} {}/{}", c2-c1, c2, count);
     }
-    stop = true;
+    //stop = true;
+    //log.info("counter={}", counter.get());
     try {Thread.currentThread().sleep(3000);} catch(Exception ex) {}
-    conn.close(null);
+    while(true) ;
+    //conn.close(null);
   }
 
 }
