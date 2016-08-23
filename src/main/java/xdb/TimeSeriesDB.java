@@ -44,10 +44,10 @@ public class TimeSeriesDB {
       hosts = new String[numhosts];
       metrics = new String[nummetrics];
       for(int i = 0; i < numhosts; i++) {
-        hosts[i] = "hosts"+i;
+        hosts[i] = "host"+i;
       }
       for(int i = 0; i < nummetrics; i++) {
-        metrics[i] = "metrics"+i;
+        metrics[i] = "metric"+i;
       }
       rnd = new Random(numhosts+nummetrics);
     }
@@ -81,10 +81,9 @@ public class TimeSeriesDB {
 
     public void run() {
       //EventFactory producer = new EventFactory(100000000, 1000);
-      EventFactory producer = new EventFactory(10, 100);
+      EventFactory producer = new EventFactory(100, 1000);
       Cursor c = session.open_cursor(table, null, null);
-      int count = 5;
-      while(count-->0) {
+      while(true) {
         session.begin_transaction(tnx);
         for(int i = 0; i < batch; i++) {
           Event evt = producer.getNextEvent();
@@ -116,6 +115,8 @@ public class TimeSeriesDB {
         try {Thread.currentThread().sleep(interval);} catch(Exception ex) {}
         Cursor c = session.open_cursor(table, null, null);
         int ret = -1;
+        int nu = 0; int nd = 0;
+        log.info("TTL scanning starts");
         while((ret = c.next()) == 0) {
           Cursor uc = session.open_cursor(null, c, null);
           int ttl = c.getValueInt();
@@ -127,15 +128,16 @@ public class TimeSeriesDB {
             uc.putKeyString(host);
             uc.putKeyString(metric);
             uc.putKeyLong(ts);
-            log.info("remove host {} metric {} ts {} {}", host, metric, ts, ttl);
+            //log.info("remove host {} metric {} ts {} {}", host, metric, ts, ttl);
             int r = uc.remove();
+            nd++;
             if(r!=0) {
               throw new RuntimeException("fails to remove");
             }
             uc.close();
             continue;
           }
-          log.info("update host {} metric {} ts {} {}==>{}", host, metric, ts, ttl, ttl-interval);
+          //log.info("update host {} metric {} ts {} {}==>{}", host, metric, ts, ttl, ttl-interval);
           uc.putKeyString(host);
           uc.putKeyString(metric);
           uc.putKeyLong(ts);
@@ -145,9 +147,11 @@ public class TimeSeriesDB {
           if(r!=0) {
             throw new RuntimeException("fails to update");
           }
+          nu++;
           uc.close();
         }
         c.close();
+        log.info("TTL scanning ends nu {} nd {}", nu, nd);
       }
     }
 
@@ -164,16 +168,16 @@ public class TimeSeriesDB {
 
     public void run() {
       while(!stop) {
+        try {Thread.currentThread().sleep(2000);} catch(Exception ex) {}
         Cursor c = session.open_cursor(table, null, null);
-        int ret = c.next();
-        if(ret<0) {
-          log.info("nothing to read");
-          try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
-          c.close();
-          continue;
+        c.putKeyString("host25");
+        c.putKeyString("metric99");
+        c.search();
+        int ret;
+        while((ret = c.next()) == 0) {
+          Event evt = new Event(c.getKeyString(), c.getKeyString(), c.getKeyLong());
+          //log.info("evt={}", evt);
         }
-        Event evt = new Event(c.getKeyString(), c.getKeyString(), c.getKeyLong());
-        log.info("evt={}", evt);
         c.close();
       }
     }
@@ -205,8 +209,8 @@ public class TimeSeriesDB {
         break;
       log.info("evts processed {} {}/{}", c2-c1, c2, count);
     }
-    //stop = true;
-    //log.info("counter={}", counter.get());
+    stop = true;
+    log.info("counter={}", counter.get());
     try {Thread.currentThread().sleep(3000);} catch(Exception ex) {}
     while(true) ;
     //conn.close(null);
