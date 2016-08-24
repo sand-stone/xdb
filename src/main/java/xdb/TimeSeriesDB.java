@@ -179,12 +179,12 @@ public class TimeSeriesDB {
     }
 
     public void run() {
-      int interval = 15;
-      int batch = 10000;
+      int interval = 5;
       while(!stop) {
         try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
         Cursor c = null;
         int nd = 0;
+        int batch = 10000;
         boolean done = false;
         try {
           c = session.open_cursor(table, null, null);
