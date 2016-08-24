@@ -282,6 +282,7 @@ public class TimeSeriesDB {
         long ts = past(10);
         c.putKeyLong(ts);
         SearchStatus status = c.search_near();
+        List<Event> evts = new ArrayList<Event>();
         switch(status) {
         case NOTFOUND:
           //log.info("no data points");
@@ -291,16 +292,15 @@ public class TimeSeriesDB {
           break;
         case FOUND:
         case LARGER:
-          List<Event> evts = new ArrayList<Event>();
           do {
-            Event evt = new Event(c.getKeyLong(), c.getKeyString(), c.getKeyString());
-            evts.add(evt);
+            evts.add(new Event(c.getKeyLong(), c.getKeyString(), c.getKeyString()));
           } while(c.next() == 0);
-          report(evts);
           break;
         }
         c.close();
         session.snapshot("drop=(all)");
+        if(evts.size() > 0)
+          report(evts);
       }
     }
 
