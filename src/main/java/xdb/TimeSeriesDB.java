@@ -107,8 +107,8 @@ public class TimeSeriesDB {
       rnd = new Random(numhosts+nummetrics);
     }
 
-    public Event getNextEvent() {
-      return new Event(hosts[rnd.nextInt(hosts.length)], metrics[rnd.nextInt(metrics.length)], Instant.now().toEpochMilli(), new byte[64]);
+    public Event getNextEvent(int salt) {
+      return new Event(hosts[rnd.nextInt(hosts.length)], metrics[rnd.nextInt(metrics.length)], Instant.now().toEpochMilli()+salt, new byte[64]);
     }
   }
 
@@ -131,29 +131,39 @@ public class TimeSeriesDB {
     public Ingestor(int count) {
       this.session = conn.open_session(null);
       this.session.create(table, storage);
-      batch = 10;
+      batch = 500;
       this.count = count;
     }
 
     public void run() {
-      log.info("ingestor starts");
-      //EventFactory producer = new EventFactory(1000, 10000);
-      EventFactory producer = new EventFactory(1000000, 10000);
+      int id = (int)Thread.currentThread().getId();
+      log.info("ingestor starts {}", id);
+      EventFactory producer = new EventFactory(10000000, 100000);
       Cursor c = session.open_cursor(table, null, null);
       while(!stopproducing) {
-        //session.begin_transaction(tnx);
-        for(int i = 0; i < batch; i++) {
-          Event evt = producer.getNextEvent();
-          c.putKeyLong(evt.ts);
-          c.putKeyString(evt.host);
-          c.putKeyString(evt.metric);
-          c.putValueByteArray(evt.val);
-          c.insert();
+        try {Thread.currentThread().sleep(id);} catch(Exception ex) {}
+        boolean done = false;
+        try {
+          session.begin_transaction(tnx);
+          for(int i = 0; i < batch; i++) {
+            Event evt = producer.getNextEvent(id);
+            c.putKeyLong(evt.ts);
+            c.putKeyString(evt.host);
+            c.putKeyString(evt.metric);
+            c.putValueByteArray(evt.val);
+            c.insert();
+          }
+          counter.addAndGet(batch);
+          done = true;
+          if(counter.get()>=count)
+            break;
+        } catch(WiredTigerRollbackException e) {
+          session.rollback_transaction(tnx);
+          log.info("ingestor roll back");
+        } finally {
+          if(done)
+            session.commit_transaction(null);
         }
-        counter.addAndGet(batch);
-        if(counter.get()>=count)
-          break;
-        //session.commit_transaction(null);
       }
       log.info("ingestor ends {}", counter.get());
     }
@@ -170,70 +180,77 @@ public class TimeSeriesDB {
 
     public void run() {
       int interval = 20;
+      int batch = 100000;
       while(!stop) {
         try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
-        Cursor c = session.open_cursor(table, null, null);
+        Cursor c = null;
         int nd = 0;
-        int batch = 100000;
-        session.snapshot("name=past1second");
-        session.begin_transaction(tnx);
-        long past = past(300);
-        c.putKeyLong(past);
-        SearchStatus status = c.search_near();
-        log.info("TTL scanning starts");
-        switch(status) {
-        case LARGER:
-          do {
-            Cursor uc = null;
-            long ts = c.getKeyLong();
-            if(ts<past) {
-              nd++;
-              try {
-                uc = session.open_cursor(null, c, null);
-                uc.putKeyLong(ts);
-                uc.putKeyString(c.getKeyString());
-                uc.putKeyString(c.getKeyString());
-                uc.remove();
-                if(batch--<=0)
-                  break;
-              } catch(WiredTigerRollbackException e) {
-                session.rollback_transaction(tnx);
-                log.info("e ={}", e);
-              } finally {
-                uc.close();
+        try {
+          c = session.open_cursor(table, null, null);
+          session.snapshot("name=past1second");
+          session.begin_transaction(tnx);
+          long past = past(300);
+          c.putKeyLong(past);
+          SearchStatus status = c.search_near();
+          log.info("TTL scanning starts");
+          switch(status) {
+          case LARGER:
+            do {
+              Cursor uc = null;
+              long ts = c.getKeyLong();
+              if(ts<past) {
+                nd++;
+                try {
+                  uc = session.open_cursor(null, c, null);
+                  uc.putKeyLong(ts);
+                  uc.putKeyString(c.getKeyString());
+                  uc.putKeyString(c.getKeyString());
+                  uc.remove();
+                  if(batch--<=0)
+                    break;
+                } catch(WiredTigerRollbackException e) {
+                  session.rollback_transaction(tnx);
+                  log.info("monitor roll back");
+                  //log.info("e ={}", e);
+                } finally {
+                  if(uc != null)
+                    uc.close();
+                }
               }
-            }
-          } while(c.prev() == 0);
-          break;
-        case NOTFOUND:
-          log.info("no data points to remove");
-          break;
-        case FOUND:
-        case SMALLER:
-          do {
-            Cursor uc = null;
-            long ts = c.getKeyLong();
-            if(ts<past) {
-              nd++;
-              try {
-                uc = session.open_cursor(null, c, null);
-                uc.putKeyLong(ts);
-                uc.putKeyString(c.getKeyString());
-                uc.putKeyString(c.getKeyString());
-                uc.remove();
-                if(batch--<=0)
-                  break;
-              } catch(WiredTigerRollbackException e) {
-                session.rollback_transaction(tnx);
-                log.info("e ={}", e);
-              } finally {
-                uc.close();
+            } while(c.prev() == 0);
+            break;
+          case NOTFOUND:
+            log.info("no data points to remove");
+            break;
+          case FOUND:
+          case SMALLER:
+            do {
+              Cursor uc = null;
+              long ts = c.getKeyLong();
+              if(ts<past) {
+                nd++;
+                try {
+                  uc = session.open_cursor(null, c, null);
+                  uc.putKeyLong(ts);
+                  uc.putKeyString(c.getKeyString());
+                  uc.putKeyString(c.getKeyString());
+                  uc.remove();
+                  if(batch--<=0)
+                    break;
+                } catch(WiredTigerRollbackException e) {
+                  session.rollback_transaction(tnx);
+                  log.info("e ={}", e);
+                } finally {
+                  uc.close();
+                }
               }
-            }
-          } while(c.prev() == 0);
-          break;
+            } while(c.prev() == 0);
+            break;
+          }
+        } finally {
+          if(c != null)
+            c.close();
         }
-        c.close();
         session.commit_transaction(null);
         session.snapshot("drop=(all)");
         log.info("TTL scanning ends deletes {} events", nd);
@@ -277,28 +294,35 @@ public class TimeSeriesDB {
       int ret;
       while(!stop) {
         try {Thread.currentThread().sleep(rnd.nextInt(2000));} catch(Exception ex) {}
-        session.snapshot("name=past");
-        Cursor c = session.open_cursor(table, null, null);
-        long ts = past(10);
-        c.putKeyLong(ts);
-        SearchStatus status = c.search_near();
+        Cursor c = null;
         List<Event> evts = new ArrayList<Event>();
-        switch(status) {
-        case NOTFOUND:
-          //log.info("no data points");
-          break;
-        case SMALLER:
-          //log.info("beyond time horizon {}", (ts-c.getKeyLong())/1000.0);
-          break;
-        case FOUND:
-        case LARGER:
-          do {
-            evts.add(new Event(c.getKeyLong(), c.getKeyString(), c.getKeyString()));
-          } while(c.next() == 0);
-          break;
+        try {
+          session.snapshot("name=past");
+          c = session.open_cursor(table, null, null);
+          long ts = past(10);
+          c.putKeyLong(ts);
+          SearchStatus status = c.search_near();
+          switch(status) {
+          case NOTFOUND:
+            //log.info("no data points");
+            break;
+          case SMALLER:
+            //log.info("beyond time horizon {}", (ts-c.getKeyLong())/1000.0);
+            break;
+          case FOUND:
+          case LARGER:
+            do {
+              evts.add(new Event(c.getKeyLong(), c.getKeyString(), c.getKeyString()));
+            } while(c.next() == 0);
+            break;
+          }
+        } catch(WiredTigerRollbackException e) {
+          log.info("analyst roll back");
+        } finally {
+          if(c != null)
+            c.close();
+          session.snapshot("drop=(all)");
         }
-        c.close();
-        session.snapshot("drop=(all)");
         if(evts.size() > 0)
           report(evts);
       }
