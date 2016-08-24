@@ -246,7 +246,7 @@ public class TimeSeriesDB {
           session.rollback_transaction(tnx);
           log.info("TTL monitor rollback");
         } finally {
-          if(done && nd>0) {
+          if(done) {
             session.commit_transaction(null);
           }
           session.snapshot("drop=(all)");
