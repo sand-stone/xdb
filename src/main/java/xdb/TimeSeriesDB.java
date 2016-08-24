@@ -331,8 +331,10 @@ public class TimeSeriesDB {
 
   public static void main( String[] args ) throws Exception {
     init();
-    int count = 1000000000;
+    int count = 500000000;
     new Thread(new Ingestor(count)).start();
+    new Thread(new Ingestor(count)).start();
+    new Thread(new Analyst()).start();
     new Thread(new Analyst()).start();
     new Thread(new Analyst()).start();
     new Thread(new TTLMonitor()).start();
