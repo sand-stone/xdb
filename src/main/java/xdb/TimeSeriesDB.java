@@ -187,9 +187,9 @@ public class TimeSeriesDB {
         int batch = 10000;
         boolean done = false;
         try {
-          c = session.open_cursor(table, null, null);
           session.snapshot("name=past1second");
           session.begin_transaction(tnx);
+          c = session.open_cursor(table, null, null);
           long past = past(3);
           c.putKeyLong(past);
           SearchStatus status = c.search_near();
@@ -243,9 +243,9 @@ public class TimeSeriesDB {
           if(done) {
             session.commit_transaction(null);
           }
-          session.snapshot("drop=(all)");
           if(c != null)
             c.close();
+          session.snapshot("drop=(all)");
         }
         log.info("TTL scanning ends deletes {} events", nd);
       }
