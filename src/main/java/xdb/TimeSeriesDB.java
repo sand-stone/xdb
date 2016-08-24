@@ -179,7 +179,7 @@ public class TimeSeriesDB {
     }
 
     public void run() {
-      int interval = 5;
+      int interval = 15;
       int batch = 10000;
       while(!stop) {
         try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
