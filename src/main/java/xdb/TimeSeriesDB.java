@@ -339,7 +339,6 @@ public class TimeSeriesDB {
     new Thread(new Analyst()).start();
     new Thread(new TTLMonitor()).start();
     while(true) {
-      try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
       int c1= counter.get();
       try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
       int c2 = counter.get();
