@@ -136,6 +136,7 @@ public class TimeSeriesDB {
       Session session = conn.open_session(null);
       session.create(table, storage);
       int batch = 1000;
+      int total = 0;
       EventFactory producer = new EventFactory(10000000, 100000);
       Cursor c = session.open_cursor(table, null, null);
       while(!stopproducing) {
@@ -151,16 +152,21 @@ public class TimeSeriesDB {
             c.putValueByteArray(evt.val);
             c.insert();
           }
-          counter.addAndGet(batch);
           done = true;
-          if(counter.get()>=count)
+          if(batch >= count)
             break;
         } catch(WiredTigerRollbackException e) {
           session.rollback_transaction(tnx);
           log.info("ingestor roll back");
         } finally {
-          if(done)
+          if(done) {
             session.commit_transaction(null);
+            counter.addAndGet(batch);
+            total += batch;
+          }
+        }
+        if(total%100000 == 0) {
+          log.info("total {}", total);
         }
       }
       c.close();
@@ -313,9 +319,9 @@ public class TimeSeriesDB {
 
   public static void main( String[] args ) throws Exception {
     init();
-    int count = 500000000;
-    new Thread(new Ingestor(count)).start();
-    new Thread(new Ingestor(count)).start();
+    int count = 1000000000;
+    new Thread(new Ingestor(count/2)).start();
+    new Thread(new Ingestor(count/2)).start();
     new Thread(new Analyst()).start();
     new Thread(new Analyst()).start();
     new Thread(new Analyst()).start();
@@ -324,11 +330,11 @@ public class TimeSeriesDB {
       int c1= counter.get();
       try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
       int c2 = counter.get();
-      if(c2 >= count*2) {
+      if(c2 >= count) {
         stopproducing = true;
         break;
       }
-      log.info("evts processed {} {}/{}", c2-c1, c2, count*2);
+      log.info("evts processed {} {}/{}", c2-c1, c2, count);
     }
     log.info("counter={}", counter.get());
     Session session = conn.open_session(null);
