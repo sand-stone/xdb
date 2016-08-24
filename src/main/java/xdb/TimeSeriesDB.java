@@ -174,7 +174,7 @@ public class TimeSeriesDB {
         try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
         Cursor c = session.open_cursor(table, null, null);
         int nd = 0;
-        int batch = 10000;
+        int batch = 100000;
         session.snapshot("name=past1second");
         session.begin_transaction(tnx);
         long past = past(10);
