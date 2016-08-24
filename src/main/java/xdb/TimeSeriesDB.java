@@ -135,7 +135,7 @@ public class TimeSeriesDB {
       log.info("ingestor starts {}", id);
       Session session = conn.open_session(null);
       session.create(table, storage);
-      int batch = 1000;
+      int batch = 100;
       int total = 0;
       EventFactory producer = new EventFactory(10000000, 100000);
       Cursor c = session.open_cursor(table, null, null);
