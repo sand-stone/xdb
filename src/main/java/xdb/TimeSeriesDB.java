@@ -244,6 +244,7 @@ public class TimeSeriesDB {
           done = true;
         } catch(WiredTigerRollbackException e) {
           session.rollback_transaction(tnx);
+          nd = 0;
           log.info("TTL monitor rollback");
         } finally {
           if(done) {
