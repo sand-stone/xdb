@@ -188,7 +188,7 @@ public class TimeSeriesDB {
         boolean done = false;
         try {
           //session.snapshot("name=past1second");
-          session.begin_transaction(tnx);
+          //session.begin_transaction(tnx);
           c = session.open_cursor(table, null, null);
           long past = past(3);
           c.putKeyLong(past);
@@ -236,12 +236,12 @@ public class TimeSeriesDB {
           }
           done = true;
         } catch(WiredTigerRollbackException e) {
-          session.rollback_transaction(tnx);
+          //session.rollback_transaction(tnx);
           nd = 0;
           log.info("TTL monitor rollback");
         } finally {
           if(done) {
-            session.commit_transaction(null);
+            //session.commit_transaction(null);
           }
           if(c != null)
             c.close();
