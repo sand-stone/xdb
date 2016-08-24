@@ -179,7 +179,7 @@ public class TimeSeriesDB {
     }
 
     public void run() {
-      int interval = 15;
+      int interval = 5;
       while(!stop) {
         try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
         Cursor c = null;
@@ -190,7 +190,7 @@ public class TimeSeriesDB {
           c = session.open_cursor(table, null, null);
           session.snapshot("name=past1second");
           session.begin_transaction(tnx);
-          long past = past(300);
+          long past = past(3);
           c.putKeyLong(past);
           SearchStatus status = c.search_near();
           log.info("TTL scanning starts");
