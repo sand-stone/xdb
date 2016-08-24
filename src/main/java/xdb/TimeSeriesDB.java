@@ -127,11 +127,12 @@ public class TimeSeriesDB {
   public static class Ingestor implements Runnable {
     Session session;
     int batch;
-
-    public Ingestor() {
+    int count;
+    public Ingestor(int count) {
       this.session = conn.open_session(null);
       this.session.create(table, storage);
       batch = 10;
+      this.count = count;
     }
 
     public void run() {
@@ -140,7 +141,7 @@ public class TimeSeriesDB {
       EventFactory producer = new EventFactory(1000, 10000);
       Cursor c = session.open_cursor(table, null, null);
       while(!stopproducing) {
-        session.begin_transaction(tnx);
+        //session.begin_transaction(tnx);
         for(int i = 0; i < batch; i++) {
           Event evt = producer.getNextEvent();
           c.putKeyLong(evt.ts);
@@ -150,7 +151,9 @@ public class TimeSeriesDB {
           c.insert();
         }
         counter.addAndGet(batch);
-        session.commit_transaction(null);
+        if(counter.get()>=count)
+          break;
+        //session.commit_transaction(null);
       }
       log.info("ingestor ends {}", counter.get());
     }
@@ -182,21 +185,24 @@ public class TimeSeriesDB {
           log.info("data points large");
           log.info("TTL scanning starts");
           do {
-            nd++;
             Cursor uc = null;
-            try {
-              uc = session.open_cursor(null, c, null);
-              uc.putKeyLong(c.getKeyLong());
-              uc.putKeyString(c.getKeyString());
-              uc.putKeyString(c.getKeyString());
-              uc.remove();
-              if(batch--<=0)
-                break;
-            } catch(WiredTigerRollbackException e) {
-              session.rollback_transaction(tnx);
-              log.info("e ={}", e);
-            } finally {
-              uc.close();
+            long ts = c.getKeyLong();
+            if(ts<past) {
+              nd++;
+              try {
+                uc = session.open_cursor(null, c, null);
+                uc.putKeyLong(ts);
+                uc.putKeyString(c.getKeyString());
+                uc.putKeyString(c.getKeyString());
+                uc.remove();
+                if(batch--<=0)
+                  break;
+              } catch(WiredTigerRollbackException e) {
+                session.rollback_transaction(tnx);
+                log.info("e ={}", e);
+              } finally {
+                uc.close();
+              }
             }
           } while(c.prev() == 0);
           log.info("TTL scanning ends");
@@ -209,23 +215,26 @@ public class TimeSeriesDB {
         case SMALLER:
           log.info("TTL scanning starts");
           do {
-            nd++;
             Cursor uc = null;
-            try {
-              uc = session.open_cursor(null, c, null);
-              uc.putKeyLong(c.getKeyLong());
-              uc.putKeyString(c.getKeyString());
-              uc.putKeyString(c.getKeyString());
-              uc.remove();
-              if(batch--<=0)
-                break;
-            } catch(WiredTigerRollbackException e) {
-              session.rollback_transaction(tnx);
-              log.info("e ={}", e);
-            } finally {
-              uc.close();
+            long ts = c.getKeyLong();
+            if(ts<past) {
+              nd++;
+              try {
+                uc = session.open_cursor(null, c, null);
+                uc.putKeyLong(ts);
+                uc.putKeyString(c.getKeyString());
+                uc.putKeyString(c.getKeyString());
+                uc.remove();
+                if(batch--<=0)
+                  break;
+              } catch(WiredTigerRollbackException e) {
+                session.rollback_transaction(tnx);
+                log.info("e ={}", e);
+              } finally {
+                uc.close();
+              }
             }
-          } while(c.next() == 0);
+          } while(c.prev() == 0);
           log.info("TTL scanning ends");
           log.info("TTL scanning deletes {} events", nd);
           break;
@@ -244,14 +253,16 @@ public class TimeSeriesDB {
 
   public static class Analyst implements Runnable {
     Session session;
+    private Random rnd;
 
     public Analyst() {
       this.session = conn.open_session(null);
       this.session.create(table, storage);
+      rnd = new Random();
     }
 
     private void report(List<Event> evts) {
-      log.info("select count(*) from events group by host, metric = {}",
+      log.info("select count(*) from events group by host, metric rows = {}",
                evts
                .stream()
                .collect((
@@ -268,7 +279,7 @@ public class TimeSeriesDB {
     public void run() {
       int ret;
       while(!stop) {
-        try {Thread.currentThread().sleep(2000);} catch(Exception ex) {}
+        try {Thread.currentThread().sleep(rnd.nextInt(2000));} catch(Exception ex) {}
         session.snapshot("name=past");
         Cursor c = session.open_cursor(table, null, null);
         long ts = past(10);
@@ -276,14 +287,13 @@ public class TimeSeriesDB {
         SearchStatus status = c.search_near();
         switch(status) {
         case NOTFOUND:
-          log.info("no data points");
+          //log.info("no data points");
           break;
         case SMALLER:
-          log.info("beyond time horizon {}", (ts-c.getKeyLong())/1000.0);
+          //log.info("beyond time horizon {}", (ts-c.getKeyLong())/1000.0);
           break;
         case FOUND:
         case LARGER:
-          log.info("ts {}", ts);
           List<Event> evts = new ArrayList<Event>();
           do {
             Event evt = new Event(c.getKeyLong(), c.getKeyString(), c.getKeyString());
@@ -321,14 +331,16 @@ public class TimeSeriesDB {
   }
 
   private static Connection conn;
-
+  
   public static void main( String[] args ) throws Exception {
     init();
-    new Thread(new Ingestor()).start();
+    int count = 2000000;
+    new Thread(new Ingestor(count)).start();
+    new Thread(new Analyst()).start();
     new Thread(new Analyst()).start();
     new Thread(new TTLMonitor()).start();
-    int count = 1000000000;
     while(true) {
+      try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
       int c1= counter.get();
       try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
       int c2 = counter.get();
@@ -337,12 +349,27 @@ public class TimeSeriesDB {
         break;
       }
       log.info("evts processed {} {}/{}", c2-c1, c2, count);
-    }
+    }    
     log.info("counter={}", counter.get());
-    try {Thread.currentThread().sleep(150000);} catch(Exception ex) {}
-    stop = true;
-    //while(true) ;
-    //conn.close(null);
+    Session session = conn.open_session(null);
+    session.create(table, storage);
+    
+    while(true) {
+      try {Thread.currentThread().sleep(3000);} catch(Exception ex) {}
+      Cursor c = session.open_cursor(table, null, null);
+      int rows = 0;
+      while(c.next()==0) {
+        rows++;
+      }
+      c.close();
+      if(rows == 0) {
+        stop = true;
+        break;
+      }
+      log.info("evts left {}", rows);
+    }
+    session.close(null);
+    conn.close(null);
   }
 
 }
