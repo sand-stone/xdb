@@ -179,12 +179,13 @@ public class TimeSeriesDB {
     }
 
     public void run() {
-      int interval = 20;
-      int batch = 100000;
+      int interval = 5;
+      int batch = 10000;
       while(!stop) {
         try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
         Cursor c = null;
         int nd = 0;
+        boolean done = false;
         try {
           c = session.open_cursor(table, null, null);
           session.snapshot("name=past1second");
@@ -199,19 +200,15 @@ public class TimeSeriesDB {
               Cursor uc = null;
               long ts = c.getKeyLong();
               if(ts<past) {
-                nd++;
                 try {
                   uc = session.open_cursor(null, c, null);
                   uc.putKeyLong(ts);
                   uc.putKeyString(c.getKeyString());
                   uc.putKeyString(c.getKeyString());
                   uc.remove();
+                  nd++;
                   if(batch--<=0)
                     break;
-                } catch(WiredTigerRollbackException e) {
-                  session.rollback_transaction(tnx);
-                  log.info("monitor roll back");
-                  //log.info("e ={}", e);
                 } finally {
                   if(uc != null)
                     uc.close();
@@ -228,18 +225,15 @@ public class TimeSeriesDB {
               Cursor uc = null;
               long ts = c.getKeyLong();
               if(ts<past) {
-                nd++;
                 try {
                   uc = session.open_cursor(null, c, null);
                   uc.putKeyLong(ts);
                   uc.putKeyString(c.getKeyString());
                   uc.putKeyString(c.getKeyString());
                   uc.remove();
+                  nd++;
                   if(batch--<=0)
                     break;
-                } catch(WiredTigerRollbackException e) {
-                  session.rollback_transaction(tnx);
-                  log.info("e ={}", e);
                 } finally {
                   uc.close();
                 }
@@ -247,12 +241,18 @@ public class TimeSeriesDB {
             } while(c.prev() == 0);
             break;
           }
+          done = true;
+        } catch(WiredTigerRollbackException e) {
+          session.rollback_transaction(tnx);
+          log.info("TTL monitor rollback");
         } finally {
+          if(done && nd>0) {
+            session.commit_transaction(null);
+          }
+          session.snapshot("drop=(all)");
           if(c != null)
             c.close();
         }
-        session.commit_transaction(null);
-        session.snapshot("drop=(all)");
         log.info("TTL scanning ends deletes {} events", nd);
       }
     }
