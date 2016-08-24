@@ -200,19 +200,15 @@ public class TimeSeriesDB {
               Cursor uc = null;
               long ts = c.getKeyLong();
               if(ts<past) {
-                try {
-                  uc = session.open_cursor(null, c, null);
-                  uc.putKeyLong(ts);
-                  uc.putKeyString(c.getKeyString());
-                  uc.putKeyString(c.getKeyString());
-                  uc.remove();
-                  nd++;
-                  if(batch--<=0)
-                    break;
-                } finally {
-                  if(uc != null)
-                    uc.close();
-                }
+                String host = c.getKeyString();
+                String metric = c.getKeyString();
+                c.putKeyLong(ts);
+                c.putKeyString(host);
+                c.putKeyString(metric);
+                c.remove();
+                nd++;
+                if(batch--<=0)
+                  break;
               }
             } while(c.prev() == 0);
             break;
@@ -225,18 +221,15 @@ public class TimeSeriesDB {
               Cursor uc = null;
               long ts = c.getKeyLong();
               if(ts<past) {
-                try {
-                  uc = session.open_cursor(null, c, null);
-                  uc.putKeyLong(ts);
-                  uc.putKeyString(c.getKeyString());
-                  uc.putKeyString(c.getKeyString());
-                  uc.remove();
-                  nd++;
-                  if(batch--<=0)
-                    break;
-                } finally {
-                  uc.close();
-                }
+                String host = c.getKeyString();
+                String metric = c.getKeyString();
+                c.putKeyLong(ts);
+                c.putKeyString(host);
+                c.putKeyString(metric);
+                c.remove();
+                nd++;
+                if(batch--<=0)
+                  break;
               }
             } while(c.prev() == 0);
             break;
