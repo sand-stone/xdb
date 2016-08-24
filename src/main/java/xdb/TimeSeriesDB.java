@@ -320,12 +320,19 @@ public class TimeSeriesDB {
   public static void main( String[] args ) throws Exception {
     init();
     int count = 1000000000;
-    new Thread(new Ingestor(count/2)).start();
-    new Thread(new Ingestor(count/2)).start();
-    new Thread(new Analyst()).start();
-    new Thread(new Analyst()).start();
-    new Thread(new Analyst()).start();
+    int pn = 5;
+    int rn = 15;
+
+    for (int i= 0; i < pn; i++) {
+      new Thread(new Ingestor(count/pn)).start();
+    }
+
+    for (int i= 0; i < rn; i++) {
+      new Thread(new Analyst()).start();
+    }
+
     new Thread(new TTLMonitor()).start();
+
     while(true) {
       int c1= counter.get();
       try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
