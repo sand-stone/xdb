@@ -136,9 +136,9 @@ public class TimeSeriesDB {
     }
 
     public void run() {
-      //EventFactory producer = new EventFactory(100000000, 1000);
       log.info("ingestor starts");
-      EventFactory producer = new EventFactory(1000, 10000);
+      //EventFactory producer = new EventFactory(1000, 10000);
+      EventFactory producer = new EventFactory(1000000, 10000);
       Cursor c = session.open_cursor(table, null, null);
       while(!stopproducing) {
         //session.begin_transaction(tnx);
@@ -180,10 +180,9 @@ public class TimeSeriesDB {
         long past = past(10);
         c.putKeyLong(past);
         SearchStatus status = c.search_near();
+        log.info("TTL scanning starts");
         switch(status) {
         case LARGER:
-          log.info("data points large");
-          log.info("TTL scanning starts");
           do {
             Cursor uc = null;
             long ts = c.getKeyLong();
@@ -205,15 +204,12 @@ public class TimeSeriesDB {
               }
             }
           } while(c.prev() == 0);
-          log.info("TTL scanning ends");
-          log.info("TTL scanning deletes {} events", nd);
           break;
         case NOTFOUND:
           log.info("no data points to remove");
           break;
         case FOUND:
         case SMALLER:
-          log.info("TTL scanning starts");
           do {
             Cursor uc = null;
             long ts = c.getKeyLong();
@@ -235,13 +231,12 @@ public class TimeSeriesDB {
               }
             }
           } while(c.prev() == 0);
-          log.info("TTL scanning ends");
-          log.info("TTL scanning deletes {} events", nd);
           break;
         }
+        c.close();
         session.commit_transaction(null);
         session.snapshot("drop=(all)");
-        c.close();
+        log.info("TTL scanning ends deletes {} events", nd);
       }
     }
 
@@ -254,15 +249,17 @@ public class TimeSeriesDB {
   public static class Analyst implements Runnable {
     Session session;
     private Random rnd;
+    private int interval;
 
     public Analyst() {
       this.session = conn.open_session(null);
       this.session.create(table, storage);
       rnd = new Random();
+      interval = 10;
     }
 
     private void report(List<Event> evts) {
-      log.info("select count(*) from events group by host, metric rows = {}",
+      log.info("For the past {} seconds, select count(*) from events group by host, metric rows = {}", interval,
                evts
                .stream()
                .collect((
@@ -331,10 +328,10 @@ public class TimeSeriesDB {
   }
 
   private static Connection conn;
-  
+
   public static void main( String[] args ) throws Exception {
     init();
-    int count = 2000000;
+    int count = 1000000000;
     new Thread(new Ingestor(count)).start();
     new Thread(new Analyst()).start();
     new Thread(new Analyst()).start();
@@ -349,11 +346,11 @@ public class TimeSeriesDB {
         break;
       }
       log.info("evts processed {} {}/{}", c2-c1, c2, count);
-    }    
+    }
     log.info("counter={}", counter.get());
     Session session = conn.open_session(null);
     session.create(table, storage);
-    
+
     while(true) {
       try {Thread.currentThread().sleep(3000);} catch(Exception ex) {}
       Cursor c = session.open_cursor(table, null, null);
@@ -369,6 +366,7 @@ public class TimeSeriesDB {
       log.info("evts left {}", rows);
     }
     session.close(null);
+    try {Thread.currentThread().sleep(3000);} catch(Exception ex) {}
     conn.close(null);
   }
 
