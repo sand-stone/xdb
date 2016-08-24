@@ -190,7 +190,7 @@ public class TimeSeriesDB {
           //session.snapshot("name=past1second");
           //session.begin_transaction(tnx);
           c = session.open_cursor(table, null, null);
-          long past = past(3);
+          long past = past(60);
           c.putKeyLong(past);
           SearchStatus status = c.search_near();
           log.info("TTL scanning starts");
