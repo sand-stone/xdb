@@ -343,11 +343,11 @@ public class TimeSeriesDB {
       int c1= counter.get();
       try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
       int c2 = counter.get();
-      if(c2 >= count) {
+      if(c2 >= count*2) {
         stopproducing = true;
         break;
       }
-      log.info("evts processed {} {}/{}", c2-c1, c2, count);
+      log.info("evts processed {} {}/{}", c2-c1, c2, count*2);
     }
     log.info("counter={}", counter.get());
     Session session = conn.open_session(null);
