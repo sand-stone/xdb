@@ -125,19 +125,17 @@ public class TimeSeriesDB {
   }
 
   public static class Ingestor implements Runnable {
-    Session session;
-    int batch;
     int count;
     public Ingestor(int count) {
-      this.session = conn.open_session(null);
-      this.session.create(table, storage);
-      batch = 1000;
       this.count = count;
     }
 
     public void run() {
       int id = (int)Thread.currentThread().getId();
       log.info("ingestor starts {}", id);
+      Session session = conn.open_session(null);
+      session.create(table, storage);
+      int batch = 1000;
       EventFactory producer = new EventFactory(10000000, 100000);
       Cursor c = session.open_cursor(table, null, null);
       while(!stopproducing) {
@@ -165,6 +163,8 @@ public class TimeSeriesDB {
             session.commit_transaction(null);
         }
       }
+      c.close();
+      session.close(null);
       log.info("ingestor ends {}", counter.get());
     }
 
@@ -185,67 +185,31 @@ public class TimeSeriesDB {
         Cursor c = null;
         int nd = 0;
         int batch = 10000;
+        long past = past(60);
         boolean done = false;
         try {
-          //session.snapshot("name=past1second");
-          //session.begin_transaction(tnx);
+          session.snapshot("name=past");
           c = session.open_cursor(table, null, null);
-          long past = past(60);
-          c.putKeyLong(past);
-          SearchStatus status = c.search_near();
-          log.info("TTL scanning starts");
-          switch(status) {
-          case LARGER:
-            do {
-              Cursor uc = null;
-              long ts = c.getKeyLong();
-              if(ts<past) {
-                String host = c.getKeyString();
-                String metric = c.getKeyString();
-                c.putKeyLong(ts);
-                c.putKeyString(host);
-                c.putKeyString(metric);
-                c.remove();
-                nd++;
-                if(batch--<=0)
-                  break;
-              }
-            } while(c.prev() == 0);
-            break;
-          case NOTFOUND:
-            log.info("no data points to remove");
-            break;
-          case FOUND:
-          case SMALLER:
-            do {
-              Cursor uc = null;
-              long ts = c.getKeyLong();
-              if(ts<past) {
-                String host = c.getKeyString();
-                String metric = c.getKeyString();
-                c.putKeyLong(ts);
-                c.putKeyString(host);
-                c.putKeyString(metric);
-                c.remove();
-                nd++;
-                if(batch--<=0)
-                  break;
-              }
-            } while(c.prev() == 0);
-            break;
+          while(c.next() == 0) {
+            long ts = c.getKeyLong();
+            if(ts<past) {
+              String host = c.getKeyString();
+              String metric = c.getKeyString();
+              c.putKeyLong(ts);
+              c.putKeyString(host);
+              c.putKeyString(metric);
+              c.remove();
+              nd++;
+              if(batch--<=0)
+                break;
+            }
           }
-          done = true;
         } catch(WiredTigerRollbackException e) {
-          //session.rollback_transaction(tnx);
-          nd = 0;
-          log.info("TTL monitor rollback");
+          log.info("ttl monitor roll back");
         } finally {
-          if(done) {
-            //session.commit_transaction(null);
-          }
           if(c != null)
             c.close();
-          //session.snapshot("drop=(all)");
+          session.snapshot("drop=(all)");
         }
         log.info("TTL scanning ends deletes {} events", nd);
       }
