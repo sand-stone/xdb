@@ -131,7 +131,7 @@ public class TimeSeriesDB {
     public Ingestor(int count) {
       this.session = conn.open_session(null);
       this.session.create(table, storage);
-      batch = 500;
+      batch = 1000;
       this.count = count;
     }
 
@@ -179,7 +179,7 @@ public class TimeSeriesDB {
     }
 
     public void run() {
-      int interval = 5;
+      int interval = 15;
       while(!stop) {
         try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
         Cursor c = null;
