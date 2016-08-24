@@ -3,8 +3,8 @@ package xdb;
 import com.wiredtiger.db.*;
 import java.nio.*;
 import java.io.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import java.util.*;
 import java.util.stream.*;
 import java.util.concurrent.*;
@@ -12,7 +12,7 @@ import java.time.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TimeSeriesDB {
-  private static Logger log = LoggerFactory.getLogger(TimeSeriesDB.class);
+  private static Logger log = LogManager.getLogger(TimeSeriesDB.class);
 
   public static class Tuple2<T1 extends Comparable, T2 extends Comparable> implements Comparable<Tuple2> {
 
