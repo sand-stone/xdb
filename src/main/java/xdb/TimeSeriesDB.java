@@ -227,11 +227,28 @@ public class TimeSeriesDB {
           stop.putValueByteArray(evt2.val);
           int r2 = stop.search();
           if(r1==0 && r2==0) {
+            int nd = 0;
+            while(start.next()==0) {
+              long ts = start.getKeyLong();
+              String host = start.getKeyString();
+              String metric = start.getKeyString();
+              if (ts == evt2.ts && host == evt2.host && metric == evt2.metric)
+                break;
+              start.putKeyLong(ts);
+              start.putKeyString(host);
+              start.putKeyString(metric);
+              start.remove();
+              nd++;
+            }
+            log.info("delete {}", nd);
+          }
+
+          /*if(r1==0 && r2==0) {
             int ret = session.truncate(null, start, stop, null);
             log.info("truncate ret {} for the past {} seconds ", ret, (stop.getKeyLong() - start.getKeyLong())/1000);
           } else {
             log.info("not found");
-          }
+            }*/
         } catch(WiredTigerRollbackException e) {
           log.info("ttl monitor roll back");
         } finally {
@@ -346,7 +363,7 @@ public class TimeSeriesDB {
   public static void main( String[] args ) throws Exception {
     init();
     int count = 2000000000;
-    int pn = 2;
+    int pn = 5;
     int rn = 15;
 
     for (int i= 0; i < pn; i++) {
