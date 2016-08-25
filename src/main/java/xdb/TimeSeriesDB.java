@@ -228,6 +228,7 @@ public class TimeSeriesDB {
           int r2 = stop.search();
           if(r1==0 && r2==0) {
             int nd = 0;
+            log.info("start delete");
             while(start.next()==0) {
               long ts = start.getKeyLong();
               String host = start.getKeyString();
