@@ -199,7 +199,10 @@ public class TimeSeriesDB {
         try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
         Cursor start = null;
         Cursor stop = null;
+        boolean done = false;
         try {
+          session.snapshot("name=past");
+          session.begin_transaction(tnx);
           Event evt1 = EventFactory.getStartEvent();
           Cursor mc = session.open_cursor(table, null, null);
           mc.putKeyLong(evt1.ts);
@@ -243,7 +246,7 @@ public class TimeSeriesDB {
             }
             log.info("delete {}", nd);
           }
-
+          done = true;
           /*if(r1==0 && r2==0) {
             int ret = session.truncate(null, start, stop, null);
             log.info("truncate ret {} for the past {} seconds ", ret, (stop.getKeyLong() - start.getKeyLong())/1000);
@@ -257,6 +260,12 @@ public class TimeSeriesDB {
             start.close();
           if(stop != null)
             stop.close();
+          if(done) {
+            session.commit_transaction(null);
+          } else {
+            session.rollback_transaction(tnx);
+          }
+          session.snapshot("drop=(all)");
         }
       }
       ttlstopped = true;
