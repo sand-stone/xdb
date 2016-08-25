@@ -115,8 +115,8 @@ public class TimeSeriesDB {
       return new Event("zzzz", "zzzz", 0, new byte[64]);
     }
 
-    public static Event getEndEvent() {
-      return new Event("zzzz", "zzzz", Instant.now().toEpochMilli(), new byte[64]);
+    public static Event getEndEvent(long ts) {
+      return new Event("zzzz", "zzzz", ts, new byte[64]);
     }
 
   }
@@ -207,7 +207,7 @@ public class TimeSeriesDB {
           mc.putKeyString(evt1.metric);
           mc.putValueByteArray(evt1.val);
           mc.insert();
-          Event evt2 = EventFactory.getEndEvent();
+          Event evt2 = EventFactory.getEndEvent(past(interval*10));
           mc.putKeyLong(evt2.ts);
           mc.putKeyString(evt2.host);
           mc.putKeyString(evt2.metric);
