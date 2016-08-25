@@ -192,10 +192,10 @@ public class TimeSeriesDB {
         Cursor stop = null;
         try {
           start = session.open_cursor(table, null, null);
-          start.putKeyLong(past(30));
+          start.putKeyLong(past(60));
           SearchStatus r1 = start.search_near();
           stop = session.open_cursor(table, null, null);
-          stop.putKeyLong(past(20));
+          stop.putKeyLong(past(55));
           SearchStatus r2 = stop.search_near();
           //log.info("r1 {} r2 {}", r1, r2);
           if(r1!=SearchStatus.NOTFOUND && r2!=SearchStatus.NOTFOUND) {
