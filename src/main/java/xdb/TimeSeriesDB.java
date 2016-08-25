@@ -365,7 +365,7 @@ public class TimeSeriesDB {
 
   private static void init() {
     checkDir(db);
-    conn = wiredtiger.open(db, "create");
+    conn = wiredtiger.open(db, "create,statistics=(all),statistics_log=(wait=10)");
   }
 
   private static Connection conn;
