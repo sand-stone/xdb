@@ -139,7 +139,7 @@ public class TimeSeriesDB {
       int total = 0;
       EventFactory producer = new EventFactory(10000000, 100000);
       Cursor c = session.open_cursor(table, null, null);
-      while(!stopproducing) {
+      while(!stop) {
         try {Thread.currentThread().sleep(id);} catch(Exception ex) {}
         boolean done = false;
         try {
@@ -186,12 +186,13 @@ public class TimeSeriesDB {
 
     public void run() {
       int interval = 5;
-      while(!stop) {
-        try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
+      while(!stop||counter.get() > 0) {
+        if(!stop)
+          try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
         Cursor c = null;
         int nd = 0;
         int batch = 10000;
-        long past = past(60);
+        long past = past(6);
         boolean done = false;
         try {
           session.snapshot("name=past");
@@ -206,7 +207,7 @@ public class TimeSeriesDB {
               c.putKeyString(metric);
               c.remove();
               nd++;
-              if(batch--<=0)
+              if(!stop && batch--<=0)
                 break;
             }
           }
@@ -217,8 +218,13 @@ public class TimeSeriesDB {
             c.close();
           session.snapshot("drop=(all)");
         }
-        log.info("TTL scanning ends deletes {} events", nd);
+        counter.addAndGet(-nd);
+        if(stop && nd == 0)
+          break;
+        log.info("TTL scanning deletes {} events", nd);
       }
+      ttlstopped = true;
+      log.info("TTL scanning ends ");
     }
 
   }
@@ -228,13 +234,11 @@ public class TimeSeriesDB {
   }
 
   public static class Analyst implements Runnable {
-    Session session;
+
     private Random rnd;
     private int interval;
 
     public Analyst() {
-      this.session = conn.open_session(null);
-      this.session.create(table, storage);
       rnd = new Random();
       interval = 10;
     }
@@ -256,6 +260,8 @@ public class TimeSeriesDB {
 
     public void run() {
       int ret;
+      Session session = conn.open_session(null);
+      session.create(table, storage);
       while(!stop) {
         try {Thread.currentThread().sleep(rnd.nextInt(2000));} catch(Exception ex) {}
         Cursor c = null;
@@ -282,6 +288,8 @@ public class TimeSeriesDB {
           }
         } catch(WiredTigerRollbackException e) {
           log.info("analyst roll back");
+        } catch(WiredTigerException e) {
+          log.info("analyst {}", e);
         } finally {
           if(c != null)
             c.close();
@@ -290,12 +298,13 @@ public class TimeSeriesDB {
         if(evts.size() > 0)
           report(evts);
       }
+      session.close(null);
     }
 
   }
 
   private static boolean stop = false;
-  private static boolean stopproducing = false;
+  private static boolean ttlstopped = false;
 
   private static final String db = "./tsdb";
   private static final String table = "table:metrics";
@@ -319,7 +328,7 @@ public class TimeSeriesDB {
 
   public static void main( String[] args ) throws Exception {
     init();
-    int count = 1000000000;
+    int count = 2000000000;
     int pn = 5;
     int rn = 15;
 
@@ -338,7 +347,7 @@ public class TimeSeriesDB {
       try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
       int c2 = counter.get();
       if(c2 >= count) {
-        stopproducing = true;
+        stop = true;
         break;
       }
       log.info("evts processed {} {}/{}", c2-c1, c2, count);
@@ -349,21 +358,15 @@ public class TimeSeriesDB {
 
     while(true) {
       try {Thread.currentThread().sleep(3000);} catch(Exception ex) {}
-      Cursor c = session.open_cursor(table, null, null);
-      int rows = 0;
-      while(c.next()==0) {
-        rows++;
-      }
-      c.close();
-      if(rows == 0) {
-        stop = true;
+      int c = counter.get();
+      log.info("evts left {}", c);
+      if(c<=0 || ttlstopped)
         break;
-      }
-      log.info("evts left {}", rows);
     }
     session.close(null);
     try {Thread.currentThread().sleep(3000);} catch(Exception ex) {}
     conn.close(null);
+    log.info("THE END");
   }
 
 }
