@@ -186,13 +186,12 @@ public class TimeSeriesDB {
 
     public void run() {
       int interval = 5;
-      while(!stop||counter.get() > 0) {
-        if(!stop)
-          try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
+      while(!stop) {
+        //try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
         Cursor c = null;
         int nd = 0;
         int batch = 10000;
-        long past = past(6);
+        long past = past(10);
         boolean done = false;
         try {
           session.snapshot("name=past");
@@ -207,7 +206,7 @@ public class TimeSeriesDB {
               c.putKeyString(metric);
               c.remove();
               nd++;
-              if(!stop && batch--<=0)
+              if(batch--<=0)
                 break;
             }
           }
@@ -218,15 +217,11 @@ public class TimeSeriesDB {
             c.close();
           session.snapshot("drop=(all)");
         }
-        counter.addAndGet(-nd);
-        if(stop && nd == 0)
-          break;
         log.info("TTL scanning deletes {} events", nd);
       }
       ttlstopped = true;
       log.info("TTL scanning ends ");
     }
-
   }
 
   static long past(int seconds) {
@@ -355,16 +350,8 @@ public class TimeSeriesDB {
     log.info("counter={}", counter.get());
     Session session = conn.open_session(null);
     session.create(table, storage);
-
-    while(true) {
-      try {Thread.currentThread().sleep(3000);} catch(Exception ex) {}
-      int c = counter.get();
-      log.info("evts left {}", c);
-      if(c<=0 || ttlstopped)
-        break;
-    }
+    try {Thread.currentThread().sleep(10000);} catch(Exception ex) {}
     log.info("THE END");
-    try {Thread.currentThread().sleep(3000);} catch(Exception ex) {}
     session.compact(table, null);
     session.drop(table, null);
     conn.close(null);
