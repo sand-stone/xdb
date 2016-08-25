@@ -346,7 +346,7 @@ public class TimeSeriesDB {
   public static void main( String[] args ) throws Exception {
     init();
     int count = 2000000000;
-    int pn = 1;
+    int pn = 2;
     int rn = 15;
 
     for (int i= 0; i < pn; i++) {
