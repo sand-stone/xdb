@@ -185,17 +185,17 @@ public class TimeSeriesDB {
     }
 
     public void run() {
-      int interval = 5;
+      int interval = 30;
       while(!stop) {
         try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
         Cursor start = null;
         Cursor stop = null;
         try {
           start = session.open_cursor(table, null, null);
-          start.putKeyLong(past(100));
+          start.putKeyLong(past(30));
           SearchStatus r1 = start.search_near();
           stop = session.open_cursor(table, null, null);
-          stop.putKeyLong(past(30));
+          stop.putKeyLong(past(20));
           SearchStatus r2 = stop.search_near();
           //log.info("r1 {} r2 {}", r1, r2);
           if(r1!=SearchStatus.NOTFOUND && r2!=SearchStatus.NOTFOUND) {
