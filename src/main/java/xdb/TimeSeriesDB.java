@@ -200,6 +200,7 @@ public class TimeSeriesDB {
           //log.info("r1 {} r2 {}", r1, r2);
           if(r1!=SearchStatus.NOTFOUND && r2!=SearchStatus.NOTFOUND) {
             log.info("starts truncation r1 {} r2{} ",r1, r2);
+            start.next(); stop.next();
             int ret = session.truncate(null, start, stop, null);
             log.info("truncate ret {} for the past {} seconds ", ret, (stop.getKeyLong() - start.getKeyLong())/1000);
           }
