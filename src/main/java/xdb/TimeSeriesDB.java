@@ -363,10 +363,11 @@ public class TimeSeriesDB {
       if(c<=0 || ttlstopped)
         break;
     }
-    session.close(null);
-    try {Thread.currentThread().sleep(3000);} catch(Exception ex) {}
-    conn.close(null);
     log.info("THE END");
+    try {Thread.currentThread().sleep(3000);} catch(Exception ex) {}
+    session.compact(table, null);
+    session.drop(table, null);
+    conn.close(null);
   }
 
 }
