@@ -187,37 +187,30 @@ public class TimeSeriesDB {
     public void run() {
       int interval = 5;
       while(!stop) {
-        //try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
-        Cursor c = null;
-        int nd = 0;
-        int batch = 10000;
-        long past = past(10);
-        boolean done = false;
+        try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
+        Cursor start = null;
+        Cursor stop = null;
         try {
-          session.snapshot("name=past");
-          c = session.open_cursor(table, null, null);
-          while(c.next() == 0) {
-            long ts = c.getKeyLong();
-            if(ts<past) {
-              String host = c.getKeyString();
-              String metric = c.getKeyString();
-              c.putKeyLong(ts);
-              c.putKeyString(host);
-              c.putKeyString(metric);
-              c.remove();
-              nd++;
-              if(batch--<=0)
-                break;
-            }
+          start = session.open_cursor(table, null, null);
+          start.putKeyLong(past(100));
+          SearchStatus r1 = start.search_near();
+          stop = session.open_cursor(table, null, null);
+          stop.putKeyLong(past(30));
+          SearchStatus r2 = stop.search_near();
+          //log.info("r1 {} r2 {}", r1, r2);
+          if(r1!=SearchStatus.NOTFOUND && r2!=SearchStatus.NOTFOUND) {
+            log.info("starts truncation r1 {} r2{} ",r1, r2);
+            int ret = session.truncate(null, start, stop, null);
+            log.info("truncate ret {} for the past {} seconds ", ret, (stop.getKeyLong() - start.getKeyLong())/1000);
           }
         } catch(WiredTigerRollbackException e) {
           log.info("ttl monitor roll back");
         } finally {
-          if(c != null)
-            c.close();
-          session.snapshot("drop=(all)");
+          if(start != null)
+            start.close();
+          if(stop != null)
+            stop.close();
         }
-        log.info("TTL scanning deletes {} events", nd);
       }
       ttlstopped = true;
       log.info("TTL scanning ends ");
