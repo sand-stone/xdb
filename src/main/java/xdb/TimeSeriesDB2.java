@@ -110,6 +110,15 @@ public class TimeSeriesDB2 {
     public Event getNextEvent() {
       return new Event(hosts[rnd.nextInt(hosts.length)], metrics[rnd.nextInt(metrics.length)], Instant.now().toEpochMilli(), new byte[64]);
     }
+
+    public static Event getStartEvent() {
+      return new Event("zzzz", "zzzz", 0, new byte[64]);
+    }
+
+    public static Event getEndEvent() {
+      return new Event("zzzz", "zzzz", Instant.now().toEpochMilli(), new byte[64]);
+    }
+
   }
 
   public static boolean checkDir(String dir) {
@@ -125,17 +134,17 @@ public class TimeSeriesDB2 {
   }
 
   public static class Ingestor implements Runnable {
-    Session session;
     int batch;
 
-    public Ingestor(Session session) {
-      this.session = session;
+    public Ingestor() {
       batch = 10;
     }
 
     public void run() {
       //EventFactory producer = new EventFactory(100000000, 1000);
       log.info("ingestor starts");
+      Session session = conn.open_session(null);
+      session.create(table, storage);
       EventFactory producer = new EventFactory(10, 10);
       Cursor c = session.open_cursor(table, null, null);
       int count = 10;
@@ -153,6 +162,7 @@ public class TimeSeriesDB2 {
         session.commit_transaction(null);
       }
       log.info("ingestor ends {}", counter.get());
+      session.close(null);
     }
 
   }
@@ -160,43 +170,62 @@ public class TimeSeriesDB2 {
   public static class TTLMonitor implements Runnable {
     Session session;
 
-    public TTLMonitor(Session session) {
-      this.session = session;
+    public TTLMonitor() {
     }
 
     public void run() {
       int interval = 1;
-      while(!stop) {
+      Session session = conn.open_session(null);
+      session.create(table, storage);
+      while(!cancel) {
         try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
         log.info("TTL scanning starts {}", session);
-        Cursor c = session.open_cursor(table, null, null);
-        log.info("TTL scanning starts");
-        int nd = 0;
-        session.begin_transaction(tnx);
-        long past = past(interval);
-        c.putKeyLong(past);
-        SearchStatus status = c.search_near();
-        switch(status) {
-        case LARGER:
-        case NOTFOUND:
-          log.info("no data points to remove");
-          break;
-        case FOUND:
-        case SMALLER:
-          do {
-            nd++;
-            Cursor uc = session.open_cursor(null, c, null);
-            uc.putKeyLong(c.getKeyLong());
-            uc.putKeyString(c.getKeyString());
-            uc.putKeyString(c.getKeyString());
-            uc.remove();
-          } while(c.prev() == 0);
-          break;
+        Cursor start = null;
+        Cursor stop = null;
+        try {
+          Event evt1 = EventFactory.getStartEvent();
+          Cursor mc = session.open_cursor(table, null, null);
+          mc.putKeyLong(evt1.ts);
+          mc.putKeyString(evt1.host);
+          mc.putKeyString(evt1.metric);
+          mc.putValueByteArray(evt1.val);
+          mc.insert();
+          Event evt2 = EventFactory.getEndEvent();
+          mc.putKeyLong(evt2.ts);
+          mc.putKeyString(evt2.host);
+          mc.putKeyString(evt2.metric);
+          mc.putValueByteArray(evt2.val);
+          mc.insert();
+          mc.close();
+          start = session.open_cursor(table, null, null);
+          start.putKeyLong(evt1.ts);
+          start.putKeyString(evt1.host);
+          start.putKeyString(evt1.metric);
+          start.putValueByteArray(evt1.val);
+          int r1 = start.search();
+          stop = session.open_cursor(table, null, null);
+          stop.putKeyLong(evt2.ts);
+          stop.putKeyString(evt2.host);
+          stop.putKeyString(evt2.metric);
+          stop.putValueByteArray(evt2.val);
+          int r2 = stop.search();
+          if(r1==0 && r2==0) {
+            int ret = session.truncate(null, start, stop, null);
+            log.info("truncate ret {} for the past {} seconds ", ret, (stop.getKeyLong() - start.getKeyLong())/1000);
+            break;
+          } else {
+            log.info("not found");
+          }
+        } catch(WiredTigerRollbackException e) {
+          log.info("ttl monitor roll back");
+        } finally {
+          if(start != null)
+            start.close();
+          if(stop != null)
+            stop.close();
         }
-        session.commit_transaction(null);
-        c.close();
-        log.info("TTL scanning ends nd {}", nd);
       }
+      session.close(null);
     }
 
   }
@@ -228,7 +257,7 @@ public class TimeSeriesDB2 {
 
     public void run() {
       int ret;
-      while(!stop) {
+      while(!cancel) {
         try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
         log.info("Analyst starts");
         Cursor c = session.open_cursor(table, null, null);
@@ -260,7 +289,7 @@ public class TimeSeriesDB2 {
 
   }
 
-  private static boolean stop = false;
+  private static boolean cancel = false;
   private static final String db = "./tsdb";
   private static final String table = "table:metrics";
   private static final String cols = "columns=(ts,host,metric,val)";
@@ -274,21 +303,34 @@ public class TimeSeriesDB2 {
 
   static AtomicInteger counter = new AtomicInteger(0);
 
-  private static Session init() {
+  private static void init() {
     checkDir(db);
     conn =  wiredtiger.open(db, "create");
-    Session session = conn.open_session(null);
-    session.create(table, storage);
-    return session;
   }
 
   private static Connection conn;
 
+  public static int rowcount() {
+    Session session = conn.open_session(null);
+    session.create(table, storage);
+    Cursor c = session.open_cursor(table, null, null);
+    int rc = 0;
+    while(c.next() == 0) {
+      rc++;
+    }
+    c.close();
+    session.close(null);
+    return rc;
+  }
+
   public static void main( String[] args ) throws Exception {
-    Session session = init();
-    new Ingestor(session).run();
+    init();
+    new Ingestor().run();
+    log.info("rc {}", rowcount());
     //new Analyst(session).run();
-    new TTLMonitor(session).run();
+    new TTLMonitor().run();
+    cancel = true;
+    log.info("rc {}", rowcount());
     conn.close(null);
   }
 

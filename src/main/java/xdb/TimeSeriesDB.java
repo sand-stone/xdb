@@ -110,6 +110,15 @@ public class TimeSeriesDB {
     public Event getNextEvent(int salt) {
       return new Event(hosts[rnd.nextInt(hosts.length)], metrics[rnd.nextInt(metrics.length)], Instant.now().toEpochMilli()+salt, new byte[64]);
     }
+
+    public static Event getStartEvent() {
+      return new Event("zzzz", "zzzz", 0, new byte[64]);
+    }
+
+    public static Event getEndEvent() {
+      return new Event("zzzz", "zzzz", Instant.now().toEpochMilli(), new byte[64]);
+    }
+
   }
 
   public static boolean checkDir(String dir) {
@@ -185,24 +194,43 @@ public class TimeSeriesDB {
     }
 
     public void run() {
-      int interval = 30;
+      int interval = 3;
       while(!stop) {
         try {Thread.currentThread().sleep(interval*1000);} catch(Exception ex) {}
         Cursor start = null;
         Cursor stop = null;
         try {
+          Event evt1 = EventFactory.getStartEvent();
+          Cursor mc = session.open_cursor(table, null, null);
+          mc.putKeyLong(evt1.ts);
+          mc.putKeyString(evt1.host);
+          mc.putKeyString(evt1.metric);
+          mc.putValueByteArray(evt1.val);
+          mc.insert();
+          Event evt2 = EventFactory.getEndEvent();
+          mc.putKeyLong(evt2.ts);
+          mc.putKeyString(evt2.host);
+          mc.putKeyString(evt2.metric);
+          mc.putValueByteArray(evt2.val);
+          mc.insert();
+          mc.close();
           start = session.open_cursor(table, null, null);
-          start.putKeyLong(past(60));
-          SearchStatus r1 = start.search_near();
+          start.putKeyLong(evt1.ts);
+          start.putKeyString(evt1.host);
+          start.putKeyString(evt1.metric);
+          start.putValueByteArray(evt1.val);
+          int r1 = start.search();
           stop = session.open_cursor(table, null, null);
-          stop.putKeyLong(past(55));
-          SearchStatus r2 = stop.search_near();
-          //log.info("r1 {} r2 {}", r1, r2);
-          if(r1!=SearchStatus.NOTFOUND && r2!=SearchStatus.NOTFOUND) {
-            log.info("starts truncation r1 {} r2{} ",r1, r2);
-            start.next(); stop.next();
+          stop.putKeyLong(evt2.ts);
+          stop.putKeyString(evt2.host);
+          stop.putKeyString(evt2.metric);
+          stop.putValueByteArray(evt2.val);
+          int r2 = stop.search();
+          if(r1==0 && r2==0) {
             int ret = session.truncate(null, start, stop, null);
             log.info("truncate ret {} for the past {} seconds ", ret, (stop.getKeyLong() - start.getKeyLong())/1000);
+          } else {
+            log.info("not found");
           }
         } catch(WiredTigerRollbackException e) {
           log.info("ttl monitor roll back");
@@ -292,7 +320,7 @@ public class TimeSeriesDB {
 
   }
 
-  private static boolean stop = false;
+  private static volatile boolean stop = false;
   private static boolean ttlstopped = false;
 
   private static final String db = "./tsdb";
