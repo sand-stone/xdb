@@ -109,7 +109,7 @@ public class TimeSeriesDB3 {
 
     public Event getNextEvent(int salt) {
       UUID guid = UUID.randomUUID();
-      return new Event("hosts"+guid.getMostSignificantBits(), "metrics"+guid.getLeastSignificantBits(), Instant.now().toEpochMilli()+salt, new byte[1000]);
+      return new Event("hosts"+guid, "metrics"+guid.getLeastSignificantBits(), Instant.now().toEpochMilli()+salt, new byte[1000]);
     }
 
     public static Event getStartEvent() {
