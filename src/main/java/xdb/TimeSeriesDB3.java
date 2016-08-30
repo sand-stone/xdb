@@ -144,23 +144,26 @@ public class TimeSeriesDB3 {
 
     public void run() {
       log.info("ingestor starts {}", id);
+      Connection conn = init(db+id);
       Session session = conn.open_session(null);
       String tablet = table+id;
       session.create(tablet, storage);
-      int batch = 1000;
+      int batch = 10000;
       int total = 0;
-      EventFactory producer = new EventFactory(100, 100);
+      byte[] val = new byte[1000];
       Cursor c = session.open_cursor(tablet, null, null);
       while(!stop) {
         boolean done = false;
         try {
           session.begin_transaction(tnx);
           for(int i = 0; i < batch; i++) {
-            Event evt = producer.getNextEvent(id);
-            c.putKeyLong(evt.ts);
-            c.putKeyString(evt.host);
-            c.putKeyString(evt.metric);
-            c.putValueByteArray(evt.val);
+            long ts = Instant.now().toEpochMilli();
+            String host = "host"+total;
+            String metric = "metric"+total;
+            c.putKeyLong(ts);
+            c.putKeyString(host);
+            c.putKeyString(metric);
+            c.putValueByteArray(val);
             c.insert();
           }
           done = true;
@@ -177,7 +180,7 @@ public class TimeSeriesDB3 {
           }
         }
         if(total%1000000 == 0) {
-          log.info("total {}", total);
+          //log.info("total {}", total);
         }
       }
       c.close();
@@ -368,18 +371,19 @@ public class TimeSeriesDB3 {
 
   static AtomicInteger counter = new AtomicInteger(0);
 
-  private static void init() {
+  private static Connection init(String db) {
     checkDir(db);
-    conn = wiredtiger.open(db, "create,cache_size=10GB,eviction=(threads_max=5,threads_min=5),lsm_manager=(merge=true,worker_thread_max=5), checkpoint=(log_size=2GB,wait=3600)");
+    Connection conn = wiredtiger.open(db, "create,cache_size=1GB,eviction=(threads_max=2,threads_min=2),lsm_manager=(merge=true,worker_thread_max=3), checkpoint=(log_size=2GB,wait=3600)");
+    return conn;
   }
 
   private static Connection conn;
 
   public static void main( String[] args ) throws Exception {
-    init();
+    conn = init(db);
     int count = 2000000000;
     int pn = 16;
-    int rn = 16;
+    int rn = 0;
 
     for (int i= 0; i < pn; i++) {
       new Thread(new Ingestor(count/pn, i)).start();
