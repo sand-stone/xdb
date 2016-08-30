@@ -152,7 +152,7 @@ public class TimeSeriesDB3 {
         try {Thread.currentThread().sleep(id);} catch(Exception ex) {}
         boolean done = false;
         try {
-          //session.begin_transaction(tnx);
+          session.begin_transaction(tnx);
           for(int i = 0; i < batch; i++) {
             Event evt = producer.getNextEvent(id);
             c.putKeyLong(evt.ts);
@@ -165,11 +165,11 @@ public class TimeSeriesDB3 {
           if(batch >= count)
             break;
         } catch(WiredTigerRollbackException e) {
-          //session.rollback_transaction(tnx);
+          session.rollback_transaction(tnx);
           log.info("ingestor roll back");
         } finally {
           if(done) {
-            //session.commit_transaction(null);
+            session.commit_transaction(null);
             counter.addAndGet(batch);
             total += batch;
           }
