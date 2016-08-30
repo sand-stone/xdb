@@ -366,7 +366,7 @@ public class TimeSeriesDB3 {
 
   private static void init() {
     checkDir(db);
-    conn = wiredtiger.open(db, "create,cache_size=10GB,eviction=(threads_max=5,threads_min=5),lsm_manager=(merge=true,worker_thread_max=5)");
+    conn = wiredtiger.open(db, "create,cache_size=10GB,eviction=(threads_max=5,threads_min=5),lsm_manager=(merge=true,worker_thread_max=5), checkpoint=(log_size=2GB,wait=3600)");
   }
 
   private static Connection conn;
