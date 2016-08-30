@@ -107,9 +107,10 @@ public class TimeSeriesDB3 {
       rnd = new Random(numhosts+nummetrics);
     }
 
-    public Event getNextEvent(int salt) {
+    private static byte[] payload = new byte[1000];
+    public static Event getNextEvent() {
       UUID guid = UUID.randomUUID();
-      return new Event("hosts"+guid, "metrics"+guid.getLeastSignificantBits(), Instant.now().toEpochMilli()+salt, new byte[1000]);
+      return new Event("hosts"+guid, "metrics"+guid.getLeastSignificantBits(), Instant.now().toEpochMilli(), payload);
     }
 
     public static Event getStartEvent() {
@@ -157,12 +158,10 @@ public class TimeSeriesDB3 {
         try {
           session.begin_transaction(tnx);
           for(int i = 0; i < batch; i++) {
-            long ts = Instant.now().toEpochMilli();
-            String host = "host"+total;
-            String metric = "metric"+total;
-            c.putKeyLong(ts);
-            c.putKeyString(host);
-            c.putKeyString(metric);
+            Event evt = EventFactory.getNextEvent();
+            c.putKeyLong(evt.ts);
+            c.putKeyString(evt.host);
+            c.putKeyString(evt.metric);
             c.putValueByteArray(val);
             c.insert();
           }
@@ -382,7 +381,7 @@ public class TimeSeriesDB3 {
   public static void main( String[] args ) throws Exception {
     conn = init(db);
     int count = 2000000000;
-    int pn = 16;
+    int pn = 64;
     int rn = 0;
 
     for (int i= 0; i < pn; i++) {
