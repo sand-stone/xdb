@@ -144,7 +144,7 @@ public class TimeSeriesDB3 {
       int id = (int)Thread.currentThread().getId();
       log.info("ingestor starts {}", id);
       Session session = conn.open_session(null);
-      session.create(table, storage);
+      session.create(table+id, storage);
       int batch = 1000;
       int total = 0;
       EventFactory producer = new EventFactory(100, 100);
