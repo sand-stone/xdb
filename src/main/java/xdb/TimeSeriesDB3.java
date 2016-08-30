@@ -151,7 +151,6 @@ public class TimeSeriesDB3 {
       EventFactory producer = new EventFactory(100, 100);
       Cursor c = session.open_cursor(tablet, null, null);
       while(!stop) {
-        try {Thread.currentThread().sleep(id);} catch(Exception ex) {}
         boolean done = false;
         try {
           session.begin_transaction(tnx);
@@ -367,7 +366,7 @@ public class TimeSeriesDB3 {
 
   private static void init() {
     checkDir(db);
-    conn = wiredtiger.open(db, "create,cache_size=10GB");
+    conn = wiredtiger.open(db, "create,cache_size=10GB,eviction=(threads_max=5,threads_min=5),lsm_manager=(merge=true,worker_thread_max=5)");
   }
 
   private static Connection conn;
