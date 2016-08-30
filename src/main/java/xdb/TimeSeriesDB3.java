@@ -136,12 +136,13 @@ public class TimeSeriesDB3 {
 
   public static class Ingestor implements Runnable {
     int count;
-    public Ingestor(int count) {
+    int id;
+    public Ingestor(int count, int id) {
       this.count = count;
+      this.id = id;
     }
 
     public void run() {
-      int id = (int)Thread.currentThread().getId();
       log.info("ingestor starts {}", id);
       Session session = conn.open_session(null);
       String tablet = table+id;
@@ -282,10 +283,12 @@ public class TimeSeriesDB3 {
 
     private Random rnd;
     private int interval;
+    private int id;
 
-    public Analyst() {
+    public Analyst(int id) {
       rnd = new Random();
       interval = 10;
+      this.id = id;
     }
 
     private void report(List<Event> evts) {
@@ -307,13 +310,14 @@ public class TimeSeriesDB3 {
       int ret;
       Session session = conn.open_session(null);
       session.create(table, storage);
+      String tablet = table+id;
       while(!stop) {
         try {Thread.currentThread().sleep(rnd.nextInt(2000));} catch(Exception ex) {}
         Cursor c = null;
         List<Event> evts = new ArrayList<Event>();
         try {
           session.snapshot("name=past");
-          c = session.open_cursor(table, null, null);
+          c = session.open_cursor(tablet, null, null);
           long ts = past(10);
           c.putKeyLong(ts);
           SearchStatus status = c.search_near();
@@ -375,14 +379,14 @@ public class TimeSeriesDB3 {
     init();
     int count = 2000000000;
     int pn = 16;
-    int rn = 0;
+    int rn = 16;
 
     for (int i= 0; i < pn; i++) {
-      new Thread(new Ingestor(count/pn)).start();
+      new Thread(new Ingestor(count/pn, i)).start();
     }
 
     for (int i= 0; i < rn; i++) {
-      new Thread(new Analyst()).start();
+      new Thread(new Analyst(i)).start();
     }
 
     //new Thread(new TTLMonitor()).start();
