@@ -144,11 +144,12 @@ public class TimeSeriesDB3 {
       int id = (int)Thread.currentThread().getId();
       log.info("ingestor starts {}", id);
       Session session = conn.open_session(null);
-      session.create(table+id, storage);
+      String tablet = table+id;
+      session.create(tablet, storage);
       int batch = 1000;
       int total = 0;
       EventFactory producer = new EventFactory(100, 100);
-      Cursor c = session.open_cursor(table, null, null);
+      Cursor c = session.open_cursor(tablet, null, null);
       while(!stop) {
         try {Thread.currentThread().sleep(id);} catch(Exception ex) {}
         boolean done = false;
