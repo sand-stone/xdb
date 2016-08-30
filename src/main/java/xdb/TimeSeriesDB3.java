@@ -108,7 +108,8 @@ public class TimeSeriesDB3 {
     }
 
     public Event getNextEvent(int salt) {
-      return new Event(hosts[rnd.nextInt(hosts.length)], metrics[rnd.nextInt(metrics.length)], Instant.now().toEpochMilli()+salt, new byte[64]);
+      UUID guid = UUID.randomUUID();
+      return new Event("hosts"+guid.getMostSignificantBits(), "metrics"+guid.getLeastSignificantBits(), Instant.now().toEpochMilli()+salt, new byte[1000]);
     }
 
     public static Event getStartEvent() {
@@ -144,9 +145,9 @@ public class TimeSeriesDB3 {
       log.info("ingestor starts {}", id);
       Session session = conn.open_session(null);
       session.create(table, storage);
-      int batch = 10000;
+      int batch = 1000;
       int total = 0;
-      EventFactory producer = new EventFactory(1000000000, 10000000);
+      EventFactory producer = new EventFactory(100, 100);
       Cursor c = session.open_cursor(table, null, null);
       while(!stop) {
         try {Thread.currentThread().sleep(id);} catch(Exception ex) {}
@@ -365,7 +366,7 @@ public class TimeSeriesDB3 {
 
   private static void init() {
     checkDir(db);
-    conn = wiredtiger.open(db, "create,cache_size=2GB");
+    conn = wiredtiger.open(db, "create,cache_size=10GB");
   }
 
   private static Connection conn;
@@ -373,7 +374,7 @@ public class TimeSeriesDB3 {
   public static void main( String[] args ) throws Exception {
     init();
     int count = 2000000000;
-    int pn = 8;
+    int pn = 16;
     int rn = 0;
 
     for (int i= 0; i < pn; i++) {
