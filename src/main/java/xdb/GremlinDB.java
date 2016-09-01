@@ -16,7 +16,8 @@ public class GremlinDB {
   private static Logger log = LogManager.getLogger(GremlinDB.class);
   private static Gson gson = new Gson();
 
-  public static class Vertex {
+  interface Element {}
+  public static class Vertex implements Element {
     public long uid;
     public Map<String, Object> props;
 
@@ -29,7 +30,7 @@ public class GremlinDB {
     }
   }
 
-  public static class Edge {
+  public static class Edge implements Element {
     public long uid;
     public Map<String, Object> props;
     public Vertex start;
@@ -50,6 +51,8 @@ public class GremlinDB {
   private String db;
   private final  String dbconfig = "create,cache_size=1GB,eviction=(threads_max=2,threads_min=2),lsm_manager=(merge=true,worker_thread_max=3), checkpoint=(log_size=2GB,wait=3600)";
 
+  private Connection conn;
+  private Session session;
   private Cursor uids;
   private Cursor tuples;
   private Cursor reversed;
@@ -73,8 +76,8 @@ public class GremlinDB {
 
   private void init() {
     checkDir(db);
-    Connection conn = wiredtiger.open(db, dbconfig);
-    Session session = conn.open_session(null);
+    conn = wiredtiger.open(db, dbconfig);
+    session = conn.open_session(null);
     session.create("table:uids", "key_format=r,value_format=u");
     uids = session.open_cursor("table:uids", null, "append");
     session.create("table:tuples", "key_format=QS,value_format=S,columns=(uid,key,value)");
@@ -150,5 +153,30 @@ public class GremlinDB {
     reversed.reset();
     return ret;    
   }
+
+  private Object key(long uid, String key) {
+    Object ret = "{}";
+    tuples.putKeyLong(uid);
+    tuples.putKeyString(key);
+    if(tuples.search() == 0) {
+      ret = gson.fromJson(tuples.getValueString(), new HashMap<String,Object>().getClass());
+    }
+    tuples.reset();
+    return ret;
+  }
+
+  public Element get(long uid) {
+    return null;
+  }
+
+  public void save(Element element) {
+
+  }
+
+  public void close() {
+    session.close(null);
+    conn.close(null);
+  }
+
   
 }
