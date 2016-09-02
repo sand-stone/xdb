@@ -8,6 +8,8 @@ import org.apache.logging.log4j.LogManager;
 import com.google.gson.*;
 import java.util.*;
 import java.util.stream.*;
+import java.util.function.Consumer;
+import java.util.function.LongConsumer;
 import java.util.concurrent.*;
 import java.time.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -118,8 +120,7 @@ public class GremlinDB {
   }
 
   private void delete(long uid) {
-    log.info("delete");
-     uids.putKeyRecord(uid);
+    uids.putKeyRecord(uid);
     if(uids.search()==0) {
       uids.putKeyRecord(uids.getKeyRecord());
       uids.remove();
@@ -135,7 +136,7 @@ public class GremlinDB {
       break;
     default:
       while(true) {
-        long tid = tuples.getKeyRecord();
+        long tid = tuples.getKeyLong();
         String key = tuples.getKeyString();
         if(tid == uid) {
           tuples.remove();
@@ -153,7 +154,6 @@ public class GremlinDB {
   }
 
   private void update(long uid, Map<String, Object> props) {
-    log.info("update");
     delete(uid);
     props.forEach((k,v) -> {
         tuples.putKeyLong(uid);
@@ -164,23 +164,53 @@ public class GremlinDB {
       );
   }
 
-  private List<Long> index(String key, Object value) {
+  private class ElementSpliterator implements  Spliterator.OfLong {
+    private String key;
+    private Object value;
+
+    public ElementSpliterator(String key, Object value) {
+      this.key = key;
+      this.value = value;
+    }
+
+    @Override
+    public int characteristics() {
+      return DISTINCT | NONNULL | IMMUTABLE;
+    }
+
+    @Override
+    public long estimateSize() {
+      return Long.MAX_VALUE;
+    }
+
+    public boolean tryAdvance(LongConsumer action) {
+      log.info("{}", ElementSpliterator.this);
+      String akey = reversed.getKeyString();
+      String aval = reversed.getKeyString();
+      String v = value.toString();
+      if(key.equals(akey) && v.equals(aval)) {
+        action.accept(reversed.getValueLong());
+      }
+      if(reversed.next()==0)
+        return true;
+      reversed.reset();
+      return false;
+    }
+
+    public Spliterator.OfLong trySplit() {
+      return null;
+    }
+  }
+
+  private LongStream index(String key, Object value) {
     String val = gson.toJson(value);
     reversed.putKeyString(key);
     reversed.putKeyString(val);
-    ArrayList<Long> ret  = new ArrayList<Long>();
     if(reversed.search() == 0) {
-      do {
-        String akey = reversed.getKeyString();
-        String aval = reversed.getKeyString();
-        String v = value.toString();
-        if(key.equals(akey) && v.equals(aval)) {
-          ret.add(reversed.getKeyLong());
-        }
-      } while(reversed.next()==0);
+      return StreamSupport.longStream(new ElementSpliterator(key, value), false);
     }
     reversed.reset();
-    return ret;
+    return LongStream.empty();
   }
 
   private Object key(long uid, String key) {
@@ -235,7 +265,6 @@ public class GremlinDB {
   }
 
   public Element save(Element element) {
-    log.info("save");
     if(element instanceof Vertex) {
       Vertex v = (Vertex)element;
       long uid = v.uid==-1? next_uid() : v.uid;
@@ -261,12 +290,25 @@ public class GremlinDB {
     conn.close(null);
   }
 
+  public Stream<Vertex> vertexes() {
+    log.info("vertexes: {}", index("__kind__", VERTEX_KIND).count());
+    return null;//StreamSupport.stream(new VertexSpliterator(), false);
+  }
+
+  public Stream<Edge> edges() {
+    log.info("edges: {}", index("__kind__", EDGE_KIND));
+    return null;
+  }
+
   private static void test1() {
     GremlinDB gdb = new GremlinDB("acme");
-    Vertex v1 = new Vertex();
-    v1 = (Vertex)gdb.save(v1);
-    Element e = gdb.get(v1.uid);
-    log.info("e {}", e);
+    Vertex[] vs = new Vertex[10];
+    for(int i = 0; i < vs.length; i++) {
+      vs[i] = new Vertex();
+      gdb.save(vs[i]);
+    }
+    gdb.vertexes();
+    gdb.edges();
     gdb.close();
   }
 
