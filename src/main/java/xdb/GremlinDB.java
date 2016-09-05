@@ -184,7 +184,6 @@ public class GremlinDB {
     }
 
     public boolean tryAdvance(LongConsumer action) {
-      log.info("{}", ElementSpliterator.this);
       String akey = reversed.getKeyString();
       String aval = reversed.getKeyString();
       String v = value.toString();
@@ -226,7 +225,7 @@ public class GremlinDB {
 
   private Object getObj(String val) {
     Object ret = null;
-    if(val.startsWith("{")) {
+    if(val.charAt(0)=='"') {
       ret = gson.fromJson(val, new HashMap<String,Object>().getClass());
     } else
       ret = Integer.parseInt(val);
@@ -255,8 +254,8 @@ public class GremlinDB {
       if(kind.equals(VERTEX_KIND)) {
         ret = new Vertex(uid, props);
       } else {
-        long start = (Long)props.get("__start__");
-        long end = (Long)props.get("__end__");
+        long start = ((Integer)props.get("__start__")).longValue();
+        long end = ((Integer)props.get("__end__")).longValue();
         ret = new Edge(uid, (Vertex)get(start), (Vertex)get(end), props);
       }
     }
@@ -291,13 +290,27 @@ public class GremlinDB {
   }
 
   public Stream<Vertex> vertexes() {
-    log.info("vertexes: {}", index("__kind__", VERTEX_KIND).count());
-    return null;//StreamSupport.stream(new VertexSpliterator(), false);
+    return index("__kind__", VERTEX_KIND).mapToObj(uid -> (Vertex)get(uid));
   }
 
   public Stream<Edge> edges() {
-    log.info("edges: {}", index("__kind__", EDGE_KIND));
-    return null;
+    return index("__kind__", EDGE_KIND).mapToObj(uid -> (Edge)get(uid));
+  }
+
+  public Stream<Edge> incomings(Vertex v) {
+    return index("__end__", v.uid()).mapToObj(uid -> (Edge)get(uid));
+  }
+
+  public Stream<Edge> outgoings(Vertex v) {
+    return index("__start__", v.uid()).mapToObj(uid -> (Edge)get(uid));
+  }
+
+  public Vertex start(Edge e) {
+    return (Vertex)get((Long)key(e.uid(), "__start__"));
+  }
+
+  public Vertex end(Edge e) {
+    return (Vertex)get((Long)key(e.uid(), "__end"));
   }
 
   private static void test1() {
@@ -307,13 +320,35 @@ public class GremlinDB {
       vs[i] = new Vertex();
       gdb.save(vs[i]);
     }
-    gdb.vertexes();
+    gdb.vertexes().forEach(System.out::println);
     gdb.edges();
     gdb.close();
   }
 
+  private static void test2() {
+    GremlinDB gdb = new GremlinDB("acme");
+    int vc = 10;
+    Vertex[] vs = new Vertex[vc];
+    for(int i = 0; i < vs.length; i++) {
+      vs[i] = new Vertex();
+      gdb.save(vs[i]);
+    }
+    int ec = vc/2;
+    Edge[] es = new Edge[ec];
+    for(int i = 0; i < ec; i++) {
+      Map<String, Object> props = new HashMap();
+      props.put("prop1", 2000);
+      props.put("prop2",i*1000);
+      es[i] = new Edge(vs[i], vs[ec+i], props);
+      gdb.save(es[i]);
+    }
+    gdb.vertexes().forEach(System.out::println);
+    gdb.edges().forEach(System.out::println);
+    gdb.close();
+  }
+
   public static void main(String[] args) {
-    test1();
+    test2();
   }
 
 }
