@@ -217,18 +217,9 @@ public class GremlinDB {
     tuples.putKeyLong(uid);
     tuples.putKeyString(key);
     if(tuples.search() == 0) {
-      ret = getObj(tuples.getValueString());
+      ret = tuples.getValueString();
     }
     tuples.reset();
-    return ret;
-  }
-
-  private Object getObj(String val) {
-    Object ret = null;
-    if(val.charAt(0)=='"') {
-      ret = gson.fromJson(val, new HashMap<String,Object>().getClass());
-    } else
-      ret = Integer.parseInt(val);
     return ret;
   }
 
@@ -246,16 +237,16 @@ public class GremlinDB {
         long tid = tuples.getKeyLong();
         String key = tuples.getKeyString();
         if(tid == uid) {
-          props.put(key, getObj(tuples.getValueString()));
+          props.put(key, tuples.getValueString());
         } else
           break;
       } while(tuples.next() == 0);
-      Integer kind = (Integer)props.get("__kind__");
-      if(kind.equals(VERTEX_KIND)) {
+      int kind = Integer.parseInt((String)props.get("__kind__"));
+      if(kind == VERTEX_KIND) {
         ret = new Vertex(uid, props);
       } else {
-        long start = ((Integer)props.get("__start__")).longValue();
-        long end = ((Integer)props.get("__end__")).longValue();
+        long start = Integer.parseInt((String)props.get("__start__"));
+        long end = Integer.parseInt((String)props.get("__end__"));
         ret = new Edge(uid, (Vertex)get(start), (Vertex)get(end), props);
       }
     }
@@ -337,7 +328,7 @@ public class GremlinDB {
     Edge[] es = new Edge[ec];
     for(int i = 0; i < ec; i++) {
       Map<String, Object> props = new HashMap();
-      props.put("prop1", 2000);
+      props.put("prop1", "somevalue");
       props.put("prop2",i*1000);
       es[i] = new Edge(vs[i], vs[ec+i], props);
       gdb.save(es[i]);
