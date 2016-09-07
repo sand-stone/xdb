@@ -35,8 +35,8 @@ public class SimpleGuidTest {
 
     public static ByteIterable get(long p1, long p2) {
       final LightOutputStream output = new LightOutputStream();
-      LongBinding.writeCompressed(output, p1);
-      LongBinding.writeCompressed(output, p2);
+      output.writeUnsignedLong(p1);
+      output.writeUnsignedLong(p2);
       return output.asArrayByteIterable();
     }
 
@@ -77,12 +77,13 @@ public class SimpleGuidTest {
   private static boolean stop = false;
 
   public static void main( String[] args ) throws Exception {
-    EnvironmentConfig config = new EnvironmentConfig();
-    config.setGcStartIn(600000);
+    final EnvironmentConfig config = new EnvironmentConfig().setLogFileSize(32 * 1024);
+    //EnvironmentConfig config = new EnvironmentConfig();
+    /*config.setGcStartIn(600000);
     config.setGcRunPeriod(3000);
     config.setGcUseExclusiveTransaction(false);
     config.setGcTransactionAcquireTimeout(1000);
-    config.setGcRunPeriod(300000);
+    config.setGcRunPeriod(300000);*/
     final Environment env = Environments.newInstance("guids", config);
     final Store store = env.computeInTransaction(new TransactionalComputable<Store>() {
         @Override
@@ -91,7 +92,7 @@ public class SimpleGuidTest {
         }
       });
 
-    int count = 50000; final int batch = 1000;
+    int count = 2000; final int batch = 1000;
     final Event[] evts = new Event[batch];
     for(int i = 0; i < count; i++) {
       for (int j = 0; j < batch; j++) {
@@ -106,8 +107,9 @@ public class SimpleGuidTest {
             }
           }
         });
-      if(i%100==0)
-        log.info("count {}", i);
+      if(i%100 == 0) {
+        System.out.println("remaining count "+(count-i));
+      }
     }
 
     for(String name :  env.getStatistics().getItemNames()) {
