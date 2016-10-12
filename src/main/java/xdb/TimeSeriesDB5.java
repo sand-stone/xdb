@@ -159,7 +159,7 @@ public class TimeSeriesDB5 {
       new Thread(new Ingestor(coldtable, i)).start();
     }
 
-    int n = 1000;
+    int n = 300;
 
     while(n-->0) {
       try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
