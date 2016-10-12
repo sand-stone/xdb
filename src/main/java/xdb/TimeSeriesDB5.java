@@ -43,6 +43,7 @@ public class TimeSeriesDB5 {
     }
 
     public void run() {
+      Random rnd = new Random();
       Session session = conn.open_session(null);
       session.create(table, storage);
       log.info("ingestor {} starts", id);
@@ -59,6 +60,7 @@ public class TimeSeriesDB5 {
           session.begin_transaction(tnx);
           for(int i = 0; i < batch; i++) {
             c.putKeyByteArray(getKey());
+            rnd.nextBytes(val);
             c.putValueByteArray(val);
             c.insert();
           }
@@ -99,7 +101,7 @@ public class TimeSeriesDB5 {
       Session session = conn.open_session(null);
       session.create(table, storage);
       while(true) {
-        try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
+        try {Thread.currentThread().sleep(10000);} catch(Exception ex) {}
         Cursor c = null;
         long count = 0, t1 = 0, t2 = 0;
         try {
@@ -163,7 +165,6 @@ public class TimeSeriesDB5 {
 
     while(n-->0) {
       try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
-      int c = counter.get();
       if(n%30 == 0)
         log.info("evts processed {} n = {}", counter.get(), n);
     }
@@ -184,6 +185,7 @@ public class TimeSeriesDB5 {
 
     while(true) {
       try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
+      log.info("evts processed {}", counter.get());
     }
     //conn.close(null);
   }
