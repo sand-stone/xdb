@@ -98,10 +98,10 @@ public class TimeSeriesDB5 {
 
     public void run() {
       int ret;
+      try {Thread.currentThread().sleep(10000);} catch(Exception ex) {}
       Session session = conn.open_session(null);
       session.create(table, storage);
       while(true) {
-        try {Thread.currentThread().sleep(10000);} catch(Exception ex) {}
         Cursor c = null;
         long count = 0, t1 = 0, t2 = 0;
         try {
