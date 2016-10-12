@@ -184,7 +184,7 @@ public class TimeSeriesDB5 {
     }
 
     while(true) {
-      try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
+      try {Thread.currentThread().sleep(30000);} catch(Exception ex) {}
       log.info("evts processed {}", counter.get());
     }
     //conn.close(null);
