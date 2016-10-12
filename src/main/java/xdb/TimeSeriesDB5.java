@@ -70,10 +70,10 @@ public class TimeSeriesDB5 {
           if(done) {
             session.commit_transaction(null);
             t2 = System.nanoTime();
-            if(c2--<= 0)
+            if(c2--<= 0) {
               log.info("writer {} write 1MB in {} \n", id, (t2-t1)/1e9);
-            else
               c2 = 100;
+            }
             counter.addAndGet(batch);
           }
         }
