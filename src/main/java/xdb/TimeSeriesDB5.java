@@ -165,7 +165,7 @@ public class TimeSeriesDB5 {
       try {Thread.currentThread().sleep(1000);} catch(Exception ex) {}
       int c = counter.get();
       if(n%30 == 0)
-        log.info("evts processed {}", counter.get());
+        log.info("evts processed {} n = {}", counter.get(), n);
     }
 
     stop = true;
