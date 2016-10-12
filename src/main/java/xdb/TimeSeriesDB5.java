@@ -51,7 +51,7 @@ public class TimeSeriesDB5 {
       byte[] val = new byte[1024];
       Cursor c = session.open_cursor(table, null, null);
       boolean done = false;
-      long t1 = 0, t2 = 0;
+      long t1 = 0, t2 = 0, c2 = 0;
       while(!stop) {
         try {
           done = false;
@@ -70,7 +70,10 @@ public class TimeSeriesDB5 {
           if(done) {
             session.commit_transaction(null);
             t2 = System.nanoTime();
-            log.info("writer {} write 1MB in {} \n", id, (t2-t1)/1e9);
+            if(c2--<= 0)
+              log.info("writer {} write 1MB in {} \n", id, (t2-t1)/1e9);
+            else
+              c2 = 100;
             counter.addAndGet(batch);
           }
         }
@@ -79,7 +82,7 @@ public class TimeSeriesDB5 {
       session.close(null);
       log.info("ingestor {} stopped", id);
     }
-    
+
   }
 
   public static class Analyst implements Runnable {
