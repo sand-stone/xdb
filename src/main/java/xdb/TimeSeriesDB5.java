@@ -46,14 +46,16 @@ public class TimeSeriesDB5 {
       Session session = conn.open_session(null);
       session.create(table, storage);
       log.info("ingestor {} starts", id);
-      int batch = 1000;
+      int batch = 1024;
       int total = 0;
       byte[] val = new byte[1024];
       Cursor c = session.open_cursor(table, null, null);
       boolean done = false;
+      long t1 = 0, t2 = 0;
       while(!stop) {
         try {
           done = false;
+          t1 = System.nanoTime();
           session.begin_transaction(tnx);
           for(int i = 0; i < batch; i++) {
             c.putKeyByteArray(getKey());
@@ -67,6 +69,8 @@ public class TimeSeriesDB5 {
         } finally {
           if(done) {
             session.commit_transaction(null);
+            t2 = System.nanoTime();
+            log.info("writer {} write 1MB in {} \n", id, (t2-t1)/1e9);
             counter.addAndGet(batch);
           }
         }
@@ -112,7 +116,7 @@ public class TimeSeriesDB5 {
           if(c != null)
             c.close();
         }
-        System.out.printf("reader %d read %d rows in %e \n", id, count, (t2-t1)/1e9);
+        log.info("reader {} read {} rows in {} \n", id, count, (t2-t1)/1e9);
       }
       //session.close(null);
     }
@@ -147,7 +151,7 @@ public class TimeSeriesDB5 {
 
     log.info("start writing into cold table");
     stop = false;
-    int nw = 5;
+    int nw = 15;
     for (int i= 0; i < nw; i++) {
       new Thread(new Ingestor(coldtable, i)).start();
     }
@@ -167,7 +171,7 @@ public class TimeSeriesDB5 {
       new Thread(new Analyst(coldtable, i)).start();
     }
 
-    try {Thread.currentThread().sleep(8000);} catch(Exception ex) {}
+    try {Thread.currentThread().sleep(10000);} catch(Exception ex) {}
     log.info("start writing into hot table");
     stop = false;
     for (int i= 0; i < nw; i++) {
