@@ -51,7 +51,7 @@ public class TimeSeriesDB5 {
       byte[] val = new byte[1024];
       Cursor c = session.open_cursor(table, null, null);
       boolean done = false;
-      long t1 = 0, t2 = 0, c2 = 0;
+      long t1 = 0, t2 = 0, c2 = 100;
       while(!stop) {
         try {
           done = false;
