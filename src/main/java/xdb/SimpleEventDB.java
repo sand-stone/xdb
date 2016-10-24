@@ -43,7 +43,58 @@ public class SimpleEventDB {
 
   public static void main( String[] args ) throws Exception {
     String db = "./eventdb";
-    checkDir(guids);
+    checkDir(db);
+    Connection conn =  wiredtiger.open(db, dbconfig);
+    System.out.println("conn:"+conn);
+    String evtTable = "table:rawevents";
+
+    Session session = conn.open_session(null);
+    session.create(evtTable, "type=lsm,key_format=u,value_format=u");
+    Cursor c = session.open_cursor(evtTable, null, null);
+    for (long i = 0; i < 10; i++) {
+      byte[] key = ByteBuffer.allocate(8).putLong(i).array();
+      byte[] val = ByteBuffer.allocate(8).putLong(1234567+i).array();
+      c.putKeyByteArray(key);
+      c.putValueByteArray(val);
+      c.update();
+    }
+    c.close();
+    session.close(null);
+
+    session = conn.open_session(null);
+    c = session.open_cursor(evtTable, null, null);
+    for (long i = 0; i < 10; i++) {
+      byte[] key = ByteBuffer.allocate(8).putLong(i).array();
+      c.putKeyByteArray(key);
+      if(c.search() == 0) {
+        byte[] v = c.getValueByteArray();
+        byte[] val = ByteBuffer.allocate(16).put(v).putLong(i).array();
+        c.putKeyByteArray(c.getKeyByteArray());
+        c.putValueByteArray(val);
+        c.update();
+      }
+      c.reset();
+    }
+    c.close();
+    session.close(null);
+
+    session = conn.open_session(null);
+    c = session.open_cursor(evtTable, null, null);
+    while(c.next() == 0) {
+      byte[] key = c.getKeyByteArray();
+      byte[] val = c.getValueByteArray();
+      log.info("key {} val {} ", key, val);
+    }
+    c.close();
+    session.close(null);
+
+    conn.close(null);
+
+  }
+
+  public static void test( String[] args ) throws Exception {
+    String db = "./eventdb";
+    checkDir(db);
     Connection conn =  wiredtiger.open("db", dbconfig);
     System.out.println("conn:"+conn);
     Session session = conn.open_session(null);
